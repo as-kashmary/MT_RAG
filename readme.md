@@ -21,3 +21,6 @@ You can run the pipeline
 "
 python src\main.py
 "
+
+5. If you use the application then checkout our endpoints in here:
+http://localhost:8000/docs
