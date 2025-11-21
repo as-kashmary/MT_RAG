@@ -76,7 +76,6 @@ def retrieval_and_fusion(document_list, query, namespace):
     #     print(f"Result {i+1}, Score: {doc[1]}: {doc[0]}")
 
     results = fusion(document_list, query, namespace)
-    
     return results
 
 
@@ -111,10 +110,11 @@ def main(args):
         print(f"Namespace '{namespace}' does not exist. It will be created when storing vectors.")
         namespace= args.namespace
         elapsed_time,document_list=chunking_and_embedding(path, embeddings, namespace, start_time, path)
-        query=input("Enter your query for classification: ")
-        query_class, query_classification_time= query_classifier_main(query, elapsed_time)
         with open(doc_list_path, 'w') as f:
             json.dump(document_list, f)
+        query=input("Enter your query for classification: ")
+        query_class, query_classification_time= query_classifier_main(query, elapsed_time)
+
         print(f"Saved document list to {doc_list_path}")
         print(f"Query Classification: {query_class}")
 
@@ -132,9 +132,6 @@ def main(args):
 
 
 
-    
-
-    
 
 if __name__ == "__main__":
     args=parse_args()
