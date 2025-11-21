@@ -1,12 +1,15 @@
 We have developed two types: application using fastapi, pipeline
 
-1. At first run
+1. run
+python -m venv venv
+
+2. At first run
 venv\Scripts\activate
 
-2. Then run
+3. Then run
 pip install -r requirements.txt
 
-3. Then run
+4. Then run
 Either:
 You can run the application just runing
 "
@@ -17,4 +20,8 @@ Or:
 You can run the pipeline
 "
 python src\main.py
+
 "
+
+5. If you use the application then checkout our endpoints in here:
+http://localhost:8000/docs

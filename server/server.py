@@ -25,12 +25,9 @@ from contextlib import asynccontextmanager
 
 
 
-
-
 HF_TOKEN="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"
 
 namespace="default"
-
 
 
 
@@ -70,11 +67,12 @@ app = FastAPI(lifespan=lifespan)
 async def chunk(path: str="documents/texts.txt"):
     start_time=time.time()
     global document_list
-    content= read_pdf_to_string(path)
+
+    content= await read_pdf_to_string(path)
     document_reading_time = time.time() - start_time
     print(f"Document Reading Time: {document_reading_time:.2f} seconds. ")
 
-    chunks=SemanticChunking(content, embeddings)
+    chunks=await SemanticChunking(content, embeddings)
     print(f"Number of chunks: {len(chunks.get_chunks())}")
     document_list=chunks.get_chunks()
     semnantic_chunking_time = time.time() - start_time
@@ -84,7 +82,8 @@ async def chunk(path: str="documents/texts.txt"):
 async def vectorizing():
     start_time=time.time()
     global vectors
-    vectors = embeddings.embed_documents(document_list)
+
+    vectors = await embeddings.embed_documents(document_list)
     print(f"Number of vectors: {len(vectors)}")
     embedding_time = time.time() - start_time
     print(f"Embedding Time: {embedding_time:.2f} seconds")
@@ -92,7 +91,7 @@ async def vectorizing():
     start_time=time.time()
     ids = [str(i) for i in range(len(vectors))]
     metadata_list = [{"text": chunk} for chunk in document_list]
-    sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=namespace)
+    await sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=namespace)
     vector_storing_time = time.time() - start_time
     print(f"Vector Storing Time: {vector_storing_time:.2f} seconds")
 
@@ -104,7 +103,8 @@ async def vectorizing():
 @app.get("/classify")
 async def query_classifier(query: str="How can I evaluate global climate?"):
     start_time=time.time()
-    query_classifier=QueryClassifier(query)
+
+    query_classifier=await QueryClassifier(query)
     query_class=query_classifier.classification()
     print(f"Query Classification Time: {time.time() - start_time:.2f} seconds")
     return query_class
@@ -118,7 +118,8 @@ async def generate_response(query: str="How can I evaluate global climate?"):
     """
     Retrieves relevant document chunks for a given query using fusion retrieval.
     """
-    results = fusion(document_list, query, namespace)
+
+    results = await fusion(document_list, query, namespace)
     context=results[0]
     # data = await request.json()
     # query = data.get("query")
