@@ -10,4 +10,4 @@ file_dir="documents"
 
 for file_name in os.listdir(file_dir):
     file_path= os.path.join(file_dir, file_name)
-    insert_file_to_db(file_path, 1, session)
+    insert_file_to_db(file_path=file_path, company_id=1, session=session)

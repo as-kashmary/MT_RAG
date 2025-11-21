@@ -23,12 +23,17 @@ class File(Base):
     company_id = Column(Integer, ForeignKey('Company.id'))
     file_data =Column(LONGBLOB)
     file_format =Column(String)
-    pending = Column(Boolean, default=False)
-    running = Column(Boolean, default=False)
-    successful = Column(Boolean, default=False)
-    failed = Column(Boolean, default=False)
+    status= Column(String, default="pending")
+
+
+mysql_user="drcash"
+mysql_password="admin%40123"
+mysql_host="mysql-drcash.alwaysdata.net"
+mysql_database="drcash_mt_rag"
+mysql_port="3306"
+
+DATABASE_URL = f"mysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
     
-DATABASE_URL = "mysql://drcash:admin%40123@mysql-drcash.alwaysdata.net:3306/drcash_mt_rag"
 
 engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(engine)

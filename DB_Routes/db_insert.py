@@ -19,10 +19,7 @@ def insert_file_to_db(file_path, company_id, session):
         company_id=company_id,
         file_data=file_bytes,
         file_format=file_type,
-        pending=True,
-        running=False,
-        successful=False,
-        failed=False
+        status="pending"
     )
 
     session.add(new_file)
