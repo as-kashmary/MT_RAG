@@ -3,12 +3,15 @@
 __pycache__/
 *.py[codz]
 *$py.class
+models/
 
 
 download_dir/
 
 climate_change_document_list.json
 default_document_list.json
+
+test.py
 
 # C extensions
 *.so

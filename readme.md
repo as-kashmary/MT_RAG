@@ -9,7 +9,13 @@ venv\Scripts\activate
 3. Then run
 pip install -r requirements.txt
 
-4. Then run
+4. Must run 
+python model_download.py
+
+
+
+
+5. Then run
 Either:
 You can run the application just runing
 "
@@ -23,5 +29,5 @@ python src\main.py
 
 "
 
-5. If you use the application then checkout our endpoints in here:
+6. If you use the application then checkout our endpoints in here:
 http://localhost:8000/docs

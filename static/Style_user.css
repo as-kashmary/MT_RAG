@@ -1,0 +1,68 @@
+/* Custom styles for the Inter font and background */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f0f2f5;
+}
+
+/* Focus ring override with blue color */
+.focus-ring-blue:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    /* blue-500 */
+    border-color: #3b82f6;
+}
+
+/* Custom scrollbar for chat messages */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Messenger-like message bubbles */
+.message-bubble {
+    padding: 10px 15px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    position: relative;
+    word-wrap: break-word;
+    /* Ensure long words break */
+    max-width: 75%;
+    /* Limit bubble width */
+}
+
+.message-bubble.sent {
+    background-color: #007bff;
+    /* A nice blue for sent messages */
+    color: white;
+    align-self: flex-end;
+    /* Pushes to the right */
+    margin-left: auto;
+    /* Pushes to the right */
+    border-bottom-right-radius: 5px;
+    /* Slight adjustment for a more natural chat bubble look */
+}
+
+.message-bubble.received {
+    background-color: #e4e6eb;
+    /* Light grey for received messages */
+    color: #333;
+    align-self: flex-start;
+    /* Pushes to the left */
+    margin-right: auto;
+    /* Pushes to the left */
+    border-bottom-left-radius: 5px;
+    /* Slight adjustment */
+}

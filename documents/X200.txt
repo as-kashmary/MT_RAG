@@ -1,0 +1,208 @@
+SmartClean X200 Vacuum Cleaner – Detailed Product Document
+1. Introduction
+
+The SmartClean X200 is a next-generation automated vacuum cleaner engineered to simplify household cleaning through advanced robotics, powerful suction technology, and intelligent navigation. Designed for modern homes, the SmartClean X200 delivers consistent cleaning performance across multiple surfaces including tiles, hardwood floors, carpets, and rugs. Its compact, circular design allows it to maneuver effortlessly under furniture, while its smart sensors prevent collisions and falls. This product aims to provide homeowners with a hands-free cleaning solution that adapts to lifestyle needs and ensures high efficiency.
+
+2. Product History
+
+The SmartClean series was introduced in 2018 with the goal of integrating robotics and artificial intelligence into home cleaning. The first model, SmartClean X50, featured basic navigation and limited scheduling capabilities. Over the years, user feedback contributed to significant technological improvements.
+
+In 2020, the SmartClean X100 was released, introducing stronger suction power and a mobile app for remote operation. The demand for more intelligent cleaning patterns, longer battery life, and improved obstacle detection led to the development of the SmartClean X200.
+
+The SmartClean X200, released in 2024, is the culmination of five years of iterative enhancements. It integrates AI-based route optimization, advanced dirt-tracking sensors, HEPA-level filtration, and multi-room mapping. The device marks a major advancement in consumer robotics and continues to serve as a benchmark in smart home appliances.
+
+3. Key Features
+3.1 Powerful Suction System
+
+The X200 uses a 3000 Pa high-performance suction motor capable of removing dust, pet hair, fine debris, and allergens from all types of flooring.
+
+3.2 Multi-Surface Adaptation
+
+Its dynamic brush roll and auto-height adjustment technology allow it to transition seamlessly between surfaces without user intervention.
+
+3.3 Intelligent Navigation
+
+Equipped with LiDAR and infrared sensors, the SmartClean X200 creates a detailed map of your home, allowing for optimized cleaning paths and avoidance of obstacles.
+
+3.4 Smart Home Integration
+
+The device is compatible with Google Home, Amazon Alexa, and the SmartClean mobile app. Voice commands like “Start cleaning” or “Dock now” can easily control the vacuum.
+
+3.5 Long Battery Life
+
+The 5200 mAh lithium-ion battery delivers up to 180 minutes of continuous cleaning. The vacuum automatically returns to the dock when the battery runs low.
+
+3.6 HEPA Filtration
+
+Its triple-layered filtration system captures 99.7% of dust and allergens, improving indoor air quality.
+
+3.7 Large Dustbin Capacity
+
+With a 600 ml dustbin, the X200 requires fewer clean-outs compared to other models in the same range.
+
+3.8 Low Noise Operation
+
+Despite its strong suction, the vacuum maintains a noise level under 55 dB for quieter operation.
+
+3.9 Scheduled Cleaning
+
+Users can program daily, weekly, or custom schedules directly from the mobile app.
+
+3.10 Anti-Collision & Anti-Drop Sensors
+
+Multiple infrared sensors prevent the vacuum from hitting furniture or falling down stairs.
+
+4. Operation Manual
+4.1 Unboxing the Product
+
+Inside the package, you will find:
+
+SmartClean X200 robotic vacuum
+
+Charging dock
+
+Power adapter
+
+Dustbin (pre-installed)
+
+Two side brushes
+
+HEPA filter set
+
+User manual
+
+4.2 Initial Setup
+
+Place the charging dock against a wall with at least one meter of open space on both sides.
+
+Connect the power adapter to the dock.
+
+Place the SmartClean X200 on the dock and allow it to charge until the LED indicator turns solid green.
+
+Install the SmartClean mobile app from the Play Store or App Store.
+
+Connect the device to Wi-Fi by following the in-app instructions.
+
+4.3 Daily Operation
+Start Cleaning
+
+Press the power button on the top of the unit.
+
+Or use the mobile app to initiate cleaning.
+
+Or use voice assistants: “Alexa, start SmartClean.”
+
+Pause or Stop
+
+Press the power button once to pause.
+
+Press and hold for 3 seconds to stop.
+
+Return to Dock
+
+Tap “Dock” in the mobile app.
+
+Or use a voice command: “Hey Google, send SmartClean home.”
+
+4.4 Cleaning the Dustbin
+
+Remove the dustbin by pressing the release latch.
+
+Open the lid and empty the contents.
+
+Rinse with water and allow it to fully dry before reinstalling.
+
+4.5 Replacing the HEPA Filter
+
+Replace the filter every 3 months for optimal performance.
+
+Open the dustbin compartment and slide the filter out.
+
+Insert a new filter until it clicks.
+
+4.6 Cleaning the Brushes
+
+Turn the vacuum upside down.
+
+Detach the side brushes and remove any tangled hair.
+
+Lift the main brush cover and pull out the brush.
+
+Clean thoroughly and reassemble.
+
+4.7 Firmware Updates
+
+Open the app and navigate to Settings → Firmware Update.
+
+Ensure the device is on the dock during updates.
+
+5. Troubleshooting Guide
+Issue 1: Device Not Charging
+
+Possible Causes & Solutions:
+
+Power adapter unplugged → Ensure the adapter is connected.
+
+Dirty charging contacts → Wipe contacts with a dry cloth.
+
+Battery degradation → Replace battery if older than 2 years.
+
+Issue 2: Weak Suction Power
+
+Solutions:
+
+Check if the dustbin is full.
+
+Clean the filters and brushes.
+
+Replace HEPA filter if clogged.
+
+Issue 3: Vacuum Stuck or Not Moving
+
+Solutions:
+
+Remove obstacles near wheels.
+
+Clean debris from the wheels.
+
+Restart the device and retry.
+
+Issue 4: Navigation Errors or Random Movement
+
+Solutions:
+
+Clean LiDAR and sensors with a microfiber cloth.
+
+Ensure adequate lighting in the room.
+
+Remap your home using the mobile app.
+
+Issue 5: Loud Noise During Operation
+
+Solutions:
+
+Remove tangled debris from the main brush.
+
+Ensure brush cover is properly locked.
+
+Replace worn-out brushes.
+
+Issue 6: Wi-Fi Connectivity Issues
+
+Solutions:
+
+Ensure 2.4 GHz Wi-Fi is enabled.
+
+Restart router and vacuum.
+
+Reset Wi-Fi settings through the app.
+
+Issue 7: Vacuum Not Returning to Dock
+
+Solutions:
+
+Ensure dock is placed in an open area.
+
+Remove obstacles near the dock.
+
+Clean sensor area.

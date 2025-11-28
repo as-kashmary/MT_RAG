@@ -9,19 +9,19 @@ class SemanticChunking:
     """
     A class to handle the Semantic Chunking process for document chunking.
     """
-    def __init__(self, content, embeddings, breakpoint_type: Literal['percentile', 'standard_deviation', 'interquartile', 'gradient'] = 'percentile',
+    def __init__(self, content, embedding_model, breakpoint_type: Literal['percentile', 'standard_deviation', 'interquartile', 'gradient'] = 'percentile',
                  breakpoint_amount=90):
         """
         Initializes the SemanticChunking by encoding the content using a semantic chunker.
 
         Args:
             content (str): Content of the document to encode.
-            embeddings: Embeddings model to use for vectorization.
+            embedding_model: embedding_model model to use for vectorization.
             breakpoint_type (BreakpointThresholdType): Type of breakpoint threshold.
             breakpoint_amount (int): Amount for the breakpoint threshold.
         """
         # self.path = path
-        self.embeddings = embeddings
+        self.embedding_model = embedding_model
 
         # Read the PDF content
         
@@ -32,7 +32,7 @@ class SemanticChunking:
         # Initialize the semantic chunker
 
         semantic_chunker=SemanticChunker(
-            embeddings=self.embeddings,
+            embeddings=self.embedding_model,
             buffer_size = 1, 
             add_start_index= False, 
             breakpoint_threshold_type=breakpoint_type, 

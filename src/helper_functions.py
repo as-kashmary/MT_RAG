@@ -220,7 +220,7 @@ def show_context(context):
         print("\n")
 
 
-def read_pdf_to_string(path):
+def read_txt_to_string(path):
     """
     Read a PDF document from the specified path and return its content as a string.
 

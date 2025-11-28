@@ -21,13 +21,30 @@ def create_bm25_index(documents: List[Document]) -> BM25Okapi:
     """
     # Tokenize each document by splitting on whitespace
     # This is a simple approach and could be improved with more sophisticated tokenization
-    print(f"Creating BM25 index for {len(documents)} documents...")
+    # print(f"Creating BM25 index for {len(documents)} documents...")
     tokenized_docs = [doc.split() for doc in documents]
-    print(f"Tokenized {len(tokenized_docs)} documents for BM25 indexing.")
+    # print(f"Tokenized {len(tokenized_docs)} documents for BM25 indexing.")
     return BM25Okapi(tokenized_docs)
 
 
-def fusion_retrieval(documents, bm25, query: str,namespace, k: int = 5, alpha: float = 0.5) -> List[Document]:
+def fusion_retrieval(length_of_total_chunks, embedding_model, bm25, query: str,namespace, k: int = 5, alpha: float = 0.5) -> List[int]:
+    """
+    What's the issue in here? 
+    The current code requires to retrieves all the chunks to compute BM25 scores. So if the knowledge base is updated frequently with new documents/chunks, 
+    the BM25 index needs to be rebuilt each time to include the new data.
+    The current implementation assumes that the documents used to create the BM25 index are the same as those in the vector store.
+    This implementation is ineffiecient for large datasets as it requires loading all documents into memory to compute BM25 scores.
+    So we need to change the implementation to compute bm25 scores.
+    In summary, the goal: precompute the bm25 scores in server startup. 
+    Then, As soon as a new document's chunks are created the bm25 index should be updated with the new chunks. For that we need to store the internal state of bm25 model.
+    We then need to update the variables of rank_bm25.BM25Okapi class with the new chunks. 
+    """
+    
+    
+    
+    
+    
+    
     """
     Perform fusion retrieval combining keyword-based (BM25) and vector-based search.
 
@@ -45,20 +62,29 @@ def fusion_retrieval(documents, bm25, query: str,namespace, k: int = 5, alpha: f
     epsilon = 1e-8
 
     # Step 1: Get all documents from the vectorstore
-    all_docs = documents
+    # all_docs = documents
 
     # Step 2: Perform BM25 search
+    # print(f"Performing BM25 search for query: {query}...")
     bm25_scores = bm25.get_scores(query.split())
 
+    print(f"BM25 scores computed for {len(bm25_scores)} documents.")
+
     # Step 3: Perform vector search
-    vector_results= query_pinecone(query, namespace=namespace, top_k=len(all_docs))
+    #query_pinecone(query,namespace,embedding_model, top_k=3)
+    vector_results= query_pinecone(query, namespace=namespace, embedding_model=embedding_model, top_k=length_of_total_chunks)
+    print(f"Vector search completed for query: {query}. namespace: {namespace} vector results count: {len(vector_results)}")
     # print(f"Vector search returned {len(vector_results['matches'])} matches.")
     
     # Step 4: Normalize scores
     vector_scores = np.array([doc[1] for doc in vector_results])
+    # print(f"Shapes of vector score {vector_scores.shape} and bm25 scores {bm25_scores.shape}")
     vector_scores = 1 - (vector_scores - np.min(vector_scores)) / (np.max(vector_scores) - np.min(vector_scores) + epsilon)
 
+    # print(f"Vector scores normalized for {len(vector_scores)} documents.")
+
     bm25_scores = (bm25_scores - np.min(bm25_scores)) / (np.max(bm25_scores) -  np.min(bm25_scores) + epsilon)
+    # print(f"BM25 scores normalized for {len(bm25_scores)} documents.")
 
     # Step 5: Combine scores
     combined_scores = alpha * vector_scores + (1 - alpha) * bm25_scores  
@@ -67,11 +93,5 @@ def fusion_retrieval(documents, bm25, query: str,namespace, k: int = 5, alpha: f
     sorted_indices = np.argsort(combined_scores)[::-1]
     
     # Step 7: Return top k documents        
-    return [all_docs[i] for i in sorted_indices[:k]]
-
-
-def fusion(documents: List[Document], query: str, namespace: str):
-    bm25= create_bm25_index(documents)
-    results= fusion_retrieval(documents, bm25, query, namespace, k=5, alpha=0.5)
-    return results
-
+    return [i for i in sorted_indices[:k]]
+    # return [all_docs[i] for i in sorted_indices[:k]]

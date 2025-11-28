@@ -5,12 +5,17 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from src.document_loader import read_pdf_to_string
+from src.document_loader import read_txt_to_string
 from src.semantic_chunker import SemanticChunking
 from src.embeder import HFInferenceEmbeddings
 from src.vector_store import sending_to_pinecone
 from db_update import update_file_status_successful, update_file_status_failed, update_file_status_running
 from db_fetch import fetch_company_by_name, fetch_file_by_company_pending
+from src.local_embeder import LocalEmbeddings
+
+
+embeddings= LocalEmbeddings("./models/multilingual-e5-large-instruct")
+embeddings._load_model()
 
 file_dir="download_dir"
 
@@ -25,12 +30,9 @@ if company:
         with open(file_path, "wb") as f:
             f.write(file.file_data)
         print(f"File {file.file_name} saved to {file_path}")
-        content= read_pdf_to_string(file_path)
+        content= read_txt_to_string(file_path)
         update_file_status_running(file_id=file.id, session=session)
-        embeddings= HFInferenceEmbeddings(
-            model="intfloat/multilingual-e5-large-instruct",
-            api_key="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"
-        )
+
         chunks=SemanticChunking(content, embeddings)
         vectors = embeddings.embed_documents(chunks.get_chunks())
         ids = [str(i) for i in range(len(vectors))]
@@ -53,7 +55,7 @@ else:
 
 # for file_name, file_object in zip(os.listdir(file_dir),files):
 #     file_path= os.path.join(file_dir, file_name)
-#     content= read_pdf_to_string(file_path)
+#     content= read_txt_to_string(file_path)
 #     update_file_status_running(file_object.id, True, session)
 #     embeddings= HFInferenceEmbeddings(
 #         model="intfloat/multilingual-e5-large-instruct",

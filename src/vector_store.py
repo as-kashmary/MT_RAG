@@ -1,16 +1,16 @@
 from pinecone import Pinecone
-from src.embeder import HFInferenceEmbeddings
+# from src.embeder import HFInferenceEmbeddings
 
-HF_TOKEN="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"
 
 pc = Pinecone(api_key="pcsk_2ht9Mg_9VwrnZM7wQrAiCkEfUTQFLDsPui6p9VxkcKbCPvKsVSUaR9jZwmeQwwuUpbpGJv")
 
 index = pc.Index(host="https://test-11ejuti.svc.aped-4627-b74a.pinecone.io")
 
-embeddings = HFInferenceEmbeddings(
-    model="intfloat/multilingual-e5-large-instruct",
-    api_key=HF_TOKEN
-)
+
+# embeddings = HFInferenceEmbeddings(
+#     model="intfloat/multilingual-e5-large-instruct",
+#     api_key=HF_TOKEN
+# )
 
 
 # print(index.describe_index_stats())
@@ -22,6 +22,13 @@ def retrieve_namespace(namespace):
         return False
     else:
         return True
+    
+
+def retrieve_length_of_namespace(namespace):
+    if stats["namespaces"].get(namespace) is None:
+        return 0
+    else:
+        return stats["namespaces"][namespace]["vector_count"]
 
 
 def sending_to_pinecone(vectors, ids, metadata_list, namespace):
@@ -40,10 +47,8 @@ def sending_to_pinecone(vectors, ids, metadata_list, namespace):
             namespace=namespace
         )
 
-
-
-def query_pinecone(query,namespace, top_k=3):
-    query_vector = embeddings.embed_query(query)
+def query_pinecone(query,namespace,embedding_model, top_k=3):
+    query_vector = embedding_model.embed_query(query)
     # print(f"Query vector : {query_vector}")
     results=index.query(
         namespace=namespace,
@@ -58,3 +63,5 @@ def query_pinecone(query,namespace, top_k=3):
         # print(f"ID: {i['id']}, Score: {i['score']}, Metadata: {i['metadata']['text']}")
         retrieved_chunks.append((i['metadata']['text'], i['score']))
     return retrieved_chunks
+
+

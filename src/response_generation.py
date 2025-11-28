@@ -30,7 +30,7 @@ class ResponseGenerator:
             },
         ]
         response = ""
-        for part in self.llm.chat('kimi-k2:1t-cloud', messages=messages, stream=True):
+        for part in self.llm.chat('deepseek-v3.1:671b-cloud', messages=messages, stream=True):
             # Get the latest content chunk
             chunk = part['message']['content']
             # print(chunk, end='', flush=True)  # Print as it streams
