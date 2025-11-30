@@ -1,9 +1,50 @@
-from rank_bm25 import BM25Okapi
+from src.rank_bm25 import BM25Okapi, BM25Okapi_without_corpus
 from typing import List
 from langchain_core.documents.base import Document
 import numpy as np
-
 from src.vector_store import query_pinecone
+
+
+
+def new_create_BM25Okapi_index(documents: List[Document], bm25_index: BM25Okapi) -> BM25Okapi:
+    tokenized_docs = [doc.split() for doc in documents]
+    bm25_index.add_documents(tokenized_docs)
+    return bm25_index
+
+def new_create_BM25Okapi_without_corpus_index(documents: List[Document], bm25_index: BM25Okapi) -> BM25Okapi:
+    tokenized_docs = [doc.split() for doc in documents]
+    bm25_index.add_documents(tokenized_docs)
+    return bm25_index
+
+
+def create_bm25_index_v2(variable_list) -> BM25Okapi:
+    """
+    'corpus_size': self.corpus_size,
+    'avgdl': self.avgdl,
+    'doc_freqs': self.doc_freqs,
+    'idf': self.idf,
+    'doc_len': self.doc_len,
+    'average_idf': self.average_idf,
+    'k1': self.k1,
+    'b': self.b,
+    'epsilon': self.epsilon
+    """
+    corpus_size = variable_list['corpus_size']
+    avgdl = variable_list['avgdl']
+    doc_freqs = variable_list['doc_freqs']
+    idf = variable_list['idf']
+    doc_len = variable_list['doc_len']
+    average_idf = variable_list['average_idf']
+    k1 = variable_list['k1']
+    b = variable_list['b']
+    epsilon = variable_list['epsilon']
+
+
+    #    def __init__(self, corpus_size, avgdl, doc_freqs, idf, doc_len, average_idf,tokenizer=None, k1=1.5, b=0.75, epsilon=0.25):
+
+    bm25=BM25Okapi_without_corpus(corpus_size=corpus_size, avgdl=avgdl, doc_freqs=doc_freqs, idf=idf, doc_len=doc_len, average_idf=average_idf, k1=k1, b=b, epsilon=epsilon)
+    return bm25
+
 
 
 def create_bm25_index(documents: List[Document]) -> BM25Okapi:
@@ -92,6 +133,7 @@ def fusion_retrieval(length_of_total_chunks, embedding_model, bm25, query: str,n
     # Step 6: Rank documents
     sorted_indices = np.argsort(combined_scores)[::-1]
     
-    # Step 7: Return top k documents        
-    return [i for i in sorted_indices[:k]]
+    # Step 7: Return top k documents 
+    # sorted_indices       
+    return [int(i) for i in sorted_indices[:k]]
     # return [all_docs[i] for i in sorted_indices[:k]]
