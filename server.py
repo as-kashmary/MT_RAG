@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from src.local_embeder import LocalEmbeddings
-from DB_Routes.monogodb_implementation import store_bm25_index_and_chunks, retrieve_bm25_index_and_chunks, update_bm25_index_and_chunks, retrieve_chunks_from_mongodb
+from DB_Routes.monogodb_implementation import store_bm25_index_and_chunks, retrieve_bm25_index_and_chunks_using_namespace, update_bm25_index_and_chunks, retrieve_chunks_from_mongodb
 
 
 
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     #     os.path.join(PROJECT_ROOT, "models", "multilingual-e5-large-instruct")
     # )
     embedding_model._load_model()
-    print(f"Embeddings model loaded. Total elapsed tim¬e: {time.time() - start_time:.2f} seconds")
+    print(f"Embeddings model loaded. Total elapsed time: {time.time() - start_time:.2f} seconds")
 
     yield
     print("Shutting down the RAG server...")
@@ -139,7 +139,7 @@ async def chunk(namespace: str="dotlines"):
         document_list+=chunks.get_chunks()
 
     length_of_total_chunks=len(document_list)
-    data = retrieve_bm25_index_and_chunks(namespace)
+    data = retrieve_bm25_index_and_chunks_using_namespace(namespace)
     if data is None:
         bm25=create_bm25_index(document_list)
         variable_list= bm25.return_variables()

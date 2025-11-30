@@ -38,15 +38,19 @@ def store_bm25_index_and_chunks(bm25_index_variables, chunks, namespace):
         'timestamp':  datetime.datetime.now(),
         "namespace": namespace,
         "bm25_index_variables": bm25_index_variables,
-        'chunk_length': len(chunks),
+        "chunk_length": len(chunks),
         "chunks": [(i, chunks[i]) for i in range(len(chunks))]
     }
     collection.insert_one(bm25_data)
     print("BM25 index and chunks stored in MongoDB.")
 
-def retrieve_bm25_index_and_chunks(namespace):
+def retrieve_bm25_index_and_chunks_using_namespace(namespace):
     data = collection.find_one({'namespace': namespace})
     return data
+
+
+def retrieve_all():
+    return collection.find()
 
 
 def update_bm25_index_and_chunks(bm25_index_variables, new_chunks, namespace):

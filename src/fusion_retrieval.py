@@ -17,7 +17,7 @@ def new_create_BM25Okapi_without_corpus_index(documents: List[Document], bm25_in
     return bm25_index
 
 
-def create_bm25_index_v2(variable_list) -> BM25Okapi:
+def create_bm25_index_v2(variable_list):
     """
     'corpus_size': self.corpus_size,
     'avgdl': self.avgdl,
