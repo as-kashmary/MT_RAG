@@ -33,7 +33,7 @@ except Exception as e:
     print(e)
 
 
-def store_bm25_index_and_chunks(bm25_index_variables, chunks, namespace):
+def store_bm25_index_and_chunks_in_mongodb(bm25_index_variables, chunks, namespace):
     bm25_data = {
         'timestamp':  datetime.datetime.now(),
         "namespace": namespace,
@@ -53,7 +53,7 @@ def retrieve_all():
     return collection.find()
 
 
-def update_bm25_index_and_chunks(bm25_index_variables, new_chunks, namespace):
+def update_bm25_index_and_chunks_in_mongodb(bm25_index_variables, new_chunks, namespace):
     update_data = {
         'timestamp':  datetime.datetime.now(),
         "bm25_index_variables": bm25_index_variables,

@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from src.local_embeder import LocalEmbeddings
-from DB_Routes.monogodb_implementation import store_bm25_index_and_chunks, retrieve_bm25_index_and_chunks_using_namespace, update_bm25_index_and_chunks, retrieve_chunks_from_mongodb
+from DB_Routes.monogodb_implementation import store_bm25_index_and_chunks_in_mongodb, retrieve_bm25_index_and_chunks_using_namespace, update_bm25_index_and_chunks_in_mongodb, retrieve_chunks_from_mongodb
 
 
 
@@ -143,7 +143,7 @@ async def chunk(namespace: str="dotlines"):
     if data is None:
         bm25=create_bm25_index(document_list)
         variable_list= bm25.return_variables()
-        store_bm25_index_and_chunks(variable_list, document_list, namespace)
+        store_bm25_index_and_chunks_in_mongodb(variable_list, document_list, namespace)
         print(f"BM25 index created with {len(document_list)} documents inside chunking route.")
         print(f"BM25 index and chunks stored in MongoDB inside chunking route.")
     else:
@@ -151,7 +151,7 @@ async def chunk(namespace: str="dotlines"):
         bm25= create_bm25_index_v2(data['bm25_index_variables'])
         bm25= new_create_BM25Okapi_without_corpus_index(document_list, bm25)
         variable_list= bm25.return_variables()
-        update_bm25_index_and_chunks(variable_list, document_list, namespace)
+        update_bm25_index_and_chunks_in_mongodb(variable_list, document_list, namespace)
         print(f"BM25 index updated with {len(document_list)} new documents inside chunking route.")
 
     """
