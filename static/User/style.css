@@ -1,0 +1,90 @@
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.chat-bubble {
+    max-width: 80%;
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.chat-bubble.user {
+    background-color: #0ea5e9;
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.chat-bubble.bot {
+    background-color: #ffffff;
+    color: #1e293b;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.typing-dot {
+    width: 5px;
+    height: 5px;
+    background: #64748b;
+    border-radius: 50%;
+    animation: typing 1.4s infinite ease-in-out;
+    display: inline-block;
+    margin: 0 1.5px;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Sidebar Scrollbar Dark Mode */
+aside ::-webkit-scrollbar-thumb {
+    background: #334155;
+}
+
+aside ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
