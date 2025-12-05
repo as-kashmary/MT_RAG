@@ -25,6 +25,7 @@ async def _get_user_by_id_from_db(db:AsyncSession)->list[UUID]:
     try:
         result= await db.execute(select(User.id))
         rows= result.scalars().all()
+        print(rows)
         return rows
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))  
@@ -42,11 +43,13 @@ async def create_user(db:DBSession, user:UserCreate)->None:
         raise HTTPException(status_code= status.HTTP_400_BAD_REQUEST, detail=f"Failure in creating user {str(e)}")
     
 @router.get("/ids", status_code= status.HTTP_200_OK, response_model=list[str])
-async def get_user_by_id(db:DBSession)->list[UUID]:
+async def get_user_by_id(db:DBSession)->list[str]:
     try: 
         user_ids=await _get_user_by_id_from_db(db)
         if len(user_ids)==0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        return [decode_uuid(uid)for uid in user_ids]
+        print(type(user_ids[0]))
+        
+        return [str(decode_uuid(uid))for uid in user_ids]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

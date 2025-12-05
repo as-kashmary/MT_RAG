@@ -134,14 +134,14 @@ async def create_file(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in creating file {str(e)}")
 
-@router.get("/ids", status_code=status.HTTP_200_OK, response_model=list[UUID])
-async def get_all_file_id_by_company(db:DBSession, company_id: str)->list[UUID]:
+@router.get("/ids", status_code=status.HTTP_200_OK, response_model=list[str])
+async def get_all_file_id_by_company(db:DBSession, company_id: str)->list[str]:
     try:
         file_id= await  _get_all_files_id_from_db(db, company_id)
         if len(file_id)==0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
             
-        return [decode_uuid(id) for id in file_id]
+        return [str(decode_uuid(id)) for id in file_id]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
     

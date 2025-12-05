@@ -37,11 +37,11 @@ async def create_company(db:DBSession, company:CompanyCreate)->None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in creating company {str(e)}")
 
 @router.get("/ids", status_code=status.HTTP_200_OK)
-async def get_all_company_id(db:DBSession)->list[UUID]:
+async def get_all_company_id(db:DBSession)->list[str]:
     try: 
         company_ids= await _get_all_company_ids_from_db(db)
         if len(company_ids)==0:   
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="No company found")
-        return [decode_uuid(cid) for cid in company_ids]
+        return [str(decode_uuid(cid)) for cid in company_ids]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")

@@ -5,13 +5,13 @@ from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
 
-def generate_uuid():
+def generate_uuid()->bytes:
     return uuid4().bytes
 
 def encode_uuid(value: str)->bytes:
     return UUID(value).bytes
 
-def decode_uuid(value: bytes):
+def decode_uuid(value: bytes)-> UUID:
     return UUID(bytes=value)
 
 """
