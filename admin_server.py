@@ -12,13 +12,9 @@ import argparse
 # sys.path.insert(0, PROJECT_ROOT)
 
 from src.document_loader import read_txt_to_string, read_pdf_to_string, read_docx_to_string
-from src.response_generation import ResponseGenerator
-from src.embeder import HFInferenceEmbeddings
 from src.vector_store import sending_to_pinecone, retrieve_namespace, query_pinecone, retrieve_length_of_namespace
 from src.fusion_retrieval import fusion_retrieval, create_bm25_index, new_create_BM25Okapi_index, new_create_BM25Okapi_without_corpus_index, create_bm25_index_v2
-from src.query_classifier import QueryClassifier
 from src.semantic_chunker import SemanticChunking
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from src.local_embeder import LocalEmbeddings
@@ -83,6 +79,8 @@ async def parser(path: str="documents"):
         elif file_type_checker(file_name) == "pdf":
             content= read_pdf_to_string(file_path)
         contents_list.append(content)
+
+    print(contents_list)
 
     parsing_time = time.time() - start_time
     print(f"Parsing Time: {parsing_time:.2f} seconds. ")

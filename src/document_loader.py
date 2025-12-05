@@ -1,7 +1,7 @@
 import time
 from langchain_community.document_loaders import TextLoader,PyPDFLoader, Docx2txtLoader
 import chardet
-
+import json
 
 
 def determine_encoding(path):
@@ -41,10 +41,20 @@ def read_pdf_to_string(path):
 
     loader = PyPDFLoader(path)
     documents = loader.load()
+    print(documents)
+    page_contents=[doc.page_content for doc in documents]
 
-    print(f"Loaded {len(documents)} documents from {path}.")
+    with open("text.txt", 'w', encoding="utf-8") as f:
+        for i in page_contents:
+            f.write(i)
 
-    return documents[0].page_content
+
+    print(f"Loaded {len(page_contents)} documents from {path}.")
+    page_content=""
+    for i in page_contents:
+        page_content+=i+'\n'
+
+    return page_content
 
 def read_docx_to_string(path):
     """
