@@ -20,7 +20,7 @@ class ResponseGenerator:
 
         prompt=f"""
         Using the following context, provide a detailed and informative answer to the query. 
-        If the context does not contain relevant information, respond with 'Insufficient information to answer the query.'\nContext: {self.context}\nQuery: {self.query}\nAnswer:"""
+        '\nContext: {self.context}\nQuery: {self.query}\nAnswer:"""
         print(prompt)
         
         messages = [

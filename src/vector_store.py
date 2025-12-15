@@ -1,39 +1,33 @@
 from pinecone import Pinecone
-# from src.embeder import HFInferenceEmbeddings
 
 
-pc = Pinecone(api_key="pcsk_2ht9Mg_9VwrnZM7wQrAiCkEfUTQFLDsPui6p9VxkcKbCPvKsVSUaR9jZwmeQwwuUpbpGJv")
-
-index = pc.Index(host="https://test-11ejuti.svc.aped-4627-b74a.pinecone.io")
-
-
-# embeddings = HFInferenceEmbeddings(
-#     model="intfloat/multilingual-e5-large-instruct",
-#     api_key=HF_TOKEN
-# )
-
-
-# print(index.describe_index_stats())
-stats=index.describe_index_stats()
-
-
-def retrieve_namespace(namespace):
-    if stats["namespaces"].get(namespace) is None:
-        return False
-    else:
-        return True
+async def retrieve_namespace(stats, namespace)-> bool:
+    try:
+        if stats["namespaces"].get(namespace) is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        raise Exception(f"Pinecone connection failed:{str(e)}")
     
 
-def retrieve_length_of_namespace(namespace):
-    if stats["namespaces"].get(namespace) is None:
-        return 0
-    else:
-        return stats["namespaces"][namespace]["vector_count"]
+async def retrieve_length_of_namespace(stats, namespace)-> int:
+    try:
+        if stats["namespaces"].get(namespace) is None:
+            return 0
+        else:
+            return stats["namespaces"][namespace]["vector_count"]
+    except Exception as e:
+        raise Exception(f"Pinecone connection failed:{str(e)}")
+    
 
 
-def sending_to_pinecone(vectors, ids, metadata_list, namespace):
-    if stats["namespaces"].get(namespace) is None:
-        # index.create_namespace(namespace)
+async def sending_to_pinecone(stats, index, vectors, ids, metadata_list, namespace)-> None:
+    try:
+        """
+        Have to resolve the id collision issue in the future.
+        """
+
 
         to_upsert = []
         for i in range(len(vectors)):
@@ -46,22 +40,36 @@ def sending_to_pinecone(vectors, ids, metadata_list, namespace):
             vectors=to_upsert,
             namespace=namespace
         )
+        return None
 
-def query_pinecone(query,namespace,embedding_model, top_k=3):
-    query_vector = embedding_model.embed_query(query)
-    # print(f"Query vector : {query_vector}")
-    results=index.query(
-        namespace=namespace,
-        vector=query_vector, 
-        top_k=top_k,
-        include_metadata=True,
-        include_values=False
-    )
-    # print(f"Query results: {results}")
-    retrieved_chunks=[]
-    for i in results['matches']:
-        # print(f"ID: {i['id']}, Score: {i['score']}, Metadata: {i['metadata']['text']}")
-        retrieved_chunks.append((i['metadata']['text'], i['score']))
-    return retrieved_chunks
+    except Exception as e:
+        raise Exception(f"Pinecone connection failed:{str(e)}")
+    
 
+
+async def query_pinecone(stats, index, query: str,namespace:str ,embedding_model: object, top_k)-> list:
+    try:
+
+        query_vector = embedding_model.embed_query(query)
+        # print(f"Query vector : {query_vector}")
+        results=index.query(
+            namespace=namespace,
+            vector=query_vector, 
+            top_k=top_k,
+            include_metadata=True,
+            include_values=False
+        )
+        # print(f"Query results: {results}")
+        retrieved_chunks=[]
+        # Sort the results[matches] according to i['id']
+        results['matches'].sort(key=lambda x: x['id'])
+        
+        for i in results['matches']:
+            # print(f"ID: {i['id']}, Score: {i['score']}, Metadata: {i['metadata']['text']}")
+            print(f"ID: {i['id']}")
+            retrieved_chunks.append((i['metadata']['text'], i['score']))
+        return retrieved_chunks
+    except Exception as e:
+        raise Exception(f"Pinecone connection failed:{str(e)}")
+        
 

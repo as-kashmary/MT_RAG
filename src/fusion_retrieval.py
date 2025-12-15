@@ -68,7 +68,7 @@ def create_bm25_index(documents: List[Document]) -> BM25Okapi:
     return BM25Okapi(tokenized_docs)
 
 
-def fusion_retrieval(length_of_total_chunks, embedding_model, bm25, query: str,namespace, k: int = 5, alpha: float = 0.5) -> List[int]:
+async def fusion_retrieval(stats, Pinecone_index, length_of_total_chunks, embedding_model, bm25, query: str,namespace, k: int = 5, alpha: float = 0.5) -> List[int]:
     """
     What's the issue in here? 
     The current code requires to retrieves all the chunks to compute BM25 scores. So if the knowledge base is updated frequently with new documents/chunks, 
@@ -113,7 +113,7 @@ def fusion_retrieval(length_of_total_chunks, embedding_model, bm25, query: str,n
 
     # Step 3: Perform vector search
     #query_pinecone(query,namespace,embedding_model, top_k=3)
-    vector_results= query_pinecone(query, namespace=namespace, embedding_model=embedding_model, top_k=length_of_total_chunks)
+    vector_results= await query_pinecone(stats, index=Pinecone_index, query=query, namespace=namespace, embedding_model=embedding_model, top_k=length_of_total_chunks)
     print(f"Vector search completed for query: {query}. namespace: {namespace} vector results count: {len(vector_results)}")
     # print(f"Vector search returned {len(vector_results['matches'])} matches.")
     

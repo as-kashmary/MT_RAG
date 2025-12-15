@@ -28,7 +28,7 @@ async def _get_all_query_ids_from_db(db:AsyncSession)->list[UUID]:
     return rows
 
 async def _get_all_query_ids_by_user_from_db(db:AsyncSession, user_id:str)->list[UUID]:
-    result= await db.execute(select(QueryAndAnswerModel.id).filter_by(user_id=user_id))
+    result= await db.execute(select(QueryAndAnswerModel.id).filter_by(user_id=encode_uuid(user_id)))
     rows= result.scalars().all()
     return rows
 

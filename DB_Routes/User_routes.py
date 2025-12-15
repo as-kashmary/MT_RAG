@@ -10,6 +10,8 @@ from sqlalchemy import select
 
 class UserCreate(BaseModel):
     name: str
+    email: str
+    password_hash: str
 
 
 

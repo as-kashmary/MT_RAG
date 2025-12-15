@@ -187,7 +187,7 @@ async def vectorizing(namespace: str="dotlines"):
     start_time=time.time()
     ids = [str(i) for i in range(len(vectors))]
     metadata_list = [{"text": chunk} for chunk in document_list]
-    sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=namespace)
+    await sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=namespace)
     vector_storing_time = time.time() - start_time
     print(f"Vector Storing Time: {vector_storing_time:.2f} seconds")
 

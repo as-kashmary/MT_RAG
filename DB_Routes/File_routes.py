@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import  AsyncSession
 from hashlib import sha256
-
+import os
 
 
 class FileCreateForm:
@@ -97,11 +97,24 @@ async def _update_file_status_failed(db:AsyncSession, file_id: UUID)->None:
         print(f"No file found with ID {file_id}")
 
 
+
+async def _creating_file_object(file_name: str, company_id: str, file_bytes: bytes, hashed: str, file_type: str):
+    new_file= FileModel(
+        file_name=file_name,
+        company_id=encode_uuid(company_id),
+        file_data=file_bytes,
+        file_hash=hashed,
+        file_format= file_type
+
+    )
+    return new_file
+
+
 """
 
 
 """
-@router.post("/create",status_code=status.HTTP_201_CREATED)
+@router.post("/create_By_Upload",status_code=status.HTTP_201_CREATED)
 async def create_file(
                       db:DBSession,
                       file_name: str =Form(...) ,
@@ -118,21 +131,47 @@ async def create_file(
         file_bytes=await file.read()
         hashed= _calculate_file_hash(file_bytes)
         existing= await _hash_exist_or_not(hashed, db)
+        file_type=file.content_type
         if existing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f" The file already exists")
         else:
-            new_file= FileModel(
-                file_name=file_name,
-                company_id=encode_uuid(company_id),
-                file_data=file_bytes,
-                file_hash=hashed,
-                file_format= file.content_type
-
-            )
+            new_file=await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type)
             db.add(new_file)
             await db.commit()
+        return None
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in creating file {str(e)}")
+
+
+@router.post("/create_By_directory",status_code=status.HTTP_201_CREATED)
+async def create_file_by_directory(db:DBSession, directory_path: str, company_id: str)->None:
+    """
+    This endpoint will take input of a direectory and will keep uploading all the files in it.
+    """
+    try:
+        for file_name in os.listdir(directory_path):
+            file_path= os.path.join(directory_path, file_name)
+            print(f"Processing file: {file_path}")
+            file_type= file_name.split(".")[-1]
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            
+            print(f"file_type: {file_type}")
+            hashed= _calculate_file_hash(file_bytes)
+            existing= await _hash_exist_or_not(hashed, db)  
+            if existing:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f" The file already exists")
+            else:
+                new_file= await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type)
+                db.add(new_file)
+                await db.commit()
+        return None
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in uploading file by directory: {str(e)}")
+
+
 
 @router.get("/ids", status_code=status.HTTP_200_OK, response_model=list[str])
 async def get_all_file_id_by_company(db:DBSession, company_id: str)->list[str]:

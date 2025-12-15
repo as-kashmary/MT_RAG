@@ -3,10 +3,12 @@ import json
 import uvicorn
 import sys
 import os
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Depends, HTTPException
 from pathlib import Path
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 import argparse
+
+from pinecone import Pinecone
 
 # PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # sys.path.insert(0, PROJECT_ROOT)
@@ -20,6 +22,28 @@ from contextlib import asynccontextmanager
 from src.local_embeder import LocalEmbeddings
 from DB_Routes.monogodb_implementation import store_bm25_index_and_chunks_in_mongodb, retrieve_bm25_index_and_chunks_using_namespace, update_bm25_index_and_chunks_in_mongodb, retrieve_chunks_from_mongodb
 
+class UserSession:
+    def __init__(self):
+        self.document_list = []
+        self.namespace = None
+        self.bm25 = None
+        self.length_of_total_chunks = None
+        self.vectors = None
+        self.contents_list = []       
+        self.variable_list = None
+        self.created_or_not = False
+        self.namespace = None
+        self.retrieved_chunk_length = 0
+        
+
+
+sessions = {}
+
+def get_user_session(user_id: str):
+    if user_id not in sessions:
+        sessions[user_id] = UserSession()
+    return sessions[user_id]
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -28,7 +52,7 @@ async def lifespan(app: FastAPI):
 
     """
 
-    global embeddings, embedding_model
+    global embedding_model, Pinecone_index, stats
     start_time = time.time()
 
     print("Starting up the RAG server...")
@@ -36,6 +60,14 @@ async def lifespan(app: FastAPI):
     embedding_model= LocalEmbeddings("./models/multilingual-e5-large-instruct")
     embedding_model._load_model()
     print(f"Embeddings model loaded. Total elapsed time: {time.time() - start_time:.2f} seconds")
+    try:
+        pc = Pinecone(api_key="pcsk_2ht9Mg_9VwrnZM7wQrAiCkEfUTQFLDsPui6p9VxkcKbCPvKsVSUaR9jZwmeQwwuUpbpGJv")
+
+        Pinecone_index = pc.Index(host="https://test-11ejuti.svc.aped-4627-b74a.pinecone.io")
+        stats=Pinecone_index.describe_index_stats()
+        print(stats)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Pinecone connection failed:{str(e)}")
 
     yield
     print("Shutting down the RAG server...")
@@ -44,7 +76,8 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.post("/parser")
-async def parser(path: str="documents"):
+async def parser(path: str="documents",
+                 user_session: UserSession = Depends(get_user_session)):
     """
     Here, we parse different document types and return their contents as strings.
     This will be called before chunking.
@@ -52,45 +85,47 @@ async def parser(path: str="documents"):
     """
     We have to implement multiprocessing here to speed up the parsing of multiple documents.
     """
+    try:
 
+        start_time=time.time()
+        user_session.contents_list = []
 
-    start_time=time.time()
-    global contents_list
-    contents_list = []
+        def file_type_checker(file_name):
+            if file_name.endswith(".pdf"):
+                return "pdf"
+            elif file_name.endswith(".txt"):
+                return "txt"
+            elif file_name.endswith(".docx"):
+                return "docx"
+            else:
+                return "unknown"
 
-    def file_type_checker(file_name):
-        if file_name.endswith(".pdf"):
-            return "pdf"
-        elif file_name.endswith(".txt"):
-            return "txt"
-        elif file_name.endswith(".docx"):
-            return "docx"
-        else:
-            return "unknown"
+        #iterate through all pdf files in the given path
+        for file_name in os.listdir(path):
+            file_path = os.path.join(path, file_name)
+            print(f"Processing file: {file_path}")
+            if file_type_checker(file_name) == "txt":
+                content= read_txt_to_string(file_path)
+            elif file_type_checker(file_name) == "docx":
+                content= read_docx_to_string(file_path)
+            elif file_type_checker(file_name) == "pdf":
+                content= read_pdf_to_string(file_path)
+            user_session.contents_list.append(content)
 
-    #iterate through all pdf files in the given path
-    for file_name in os.listdir(path):
-        file_path = os.path.join(path, file_name)
-        print(f"Processing file: {file_path}")
-        if file_type_checker(file_name) == "txt":
-            content= read_txt_to_string(file_path)
-        elif file_type_checker(file_name) == "docx":
-            content= read_docx_to_string(file_path)
-        elif file_type_checker(file_name) == "pdf":
-            content= read_pdf_to_string(file_path)
-        contents_list.append(content)
+        # print(contents_list)
 
-    print(contents_list)
+        parsing_time = time.time() - start_time
+        print(f"Parsing Time: {parsing_time:.2f} seconds. ")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Parsing failed:{str(e)}")
 
-    parsing_time = time.time() - start_time
-    print(f"Parsing Time: {parsing_time:.2f} seconds. ")
 
 @app.post("/chunk")
-async def chunk(namespace: str="dotlines"):
+async def chunk(namespace: str="dotlines",
+                 user_session: UserSession = Depends(get_user_session)):
     start_time=time.time()
-    global document_list, bm25, length_of_total_chunks, created_or_not, variable_list, namespace1
-    namespace1= namespace
-    document_list = []
+    # global document_list, bm25, length_of_total_chunks, created_or_not, variable_list, namespace1
+    user_session.namespace= namespace
     """
     28/11/2025
     Here, we chunk the parsed document contents into smaller semantic chunks.
@@ -110,26 +145,28 @@ async def chunk(namespace: str="dotlines"):
     Otherwise, we create a new bm25 index and store it in mongodb.
 
     """
+    try:
+        for content in user_session.contents_list:
+            chunks= SemanticChunking(content, embedding_model)
+            print(f"Number of chunks: {len(chunks.get_chunks())}")
+            user_session.document_list+=chunks.get_chunks()
 
-    for content in contents_list:
-        chunks= SemanticChunking(content, embedding_model)
-        print(f"Number of chunks: {len(chunks.get_chunks())}")
-        document_list+=chunks.get_chunks()
-
-    length_of_total_chunks=len(document_list)
-    data = retrieve_bm25_index_and_chunks_using_namespace(namespace)
-    created_or_not= False
-    if data is None:
-        bm25=create_bm25_index(document_list)
-        variable_list= bm25.return_variables()
-        created_or_not= True
-        print(f"BM25 index created with {len(document_list)} documents inside chunking route.")
-    else:
-        print(f"BM25 index retrieved from MongoDB with {len(document_list)} documents inside chunking route.")
-        bm25= create_bm25_index_v2(data['bm25_index_variables'])
-        bm25= new_create_BM25Okapi_without_corpus_index(document_list, bm25)
-        variable_list= bm25.return_variables()
-        
+        user_session.length_of_total_chunks=len(user_session.document_list)
+        data = retrieve_bm25_index_and_chunks_using_namespace(user_session.namespace)
+        user_session.created_or_not= False
+        if data is None:
+            user_session.bm25=create_bm25_index(user_session.document_list)
+            user_session.variable_list= user_session.bm25.return_variables()
+            user_session.created_or_not= True
+            print(f"BM25 index created with {len(user_session.document_list)} documents inside chunking route.")
+        else:
+            print(f"BM25 index retrieved from MongoDB with {len(user_session.document_list)} documents inside chunking route.")
+            user_session.bm25= create_bm25_index_v2(data['bm25_index_variables'])
+            user_session.retrieved_chunk_length= data['chunk_length']
+            user_session.bm25= new_create_BM25Okapi_without_corpus_index(user_session.document_list, user_session.bm25)
+            user_session.variable_list= user_session.bm25.return_variables()
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Chunking failed:{str(e)}")
 
     """
     28/11/2025
@@ -144,7 +181,8 @@ async def chunk(namespace: str="dotlines"):
     print(f"Parsing and Chunking Time: {semnantic_chunking_time:.2f} seconds. ")
 
 @app.get("/vectorizing")
-async def vectorizing(namespace: str="dotlines"):
+async def vectorizing(namespace: str="dotlines",
+                    user_session: UserSession = Depends(get_user_session)):
     """
     28/11/2025
     Chunks are stored in document_list global variable after chunking.
@@ -153,35 +191,37 @@ async def vectorizing(namespace: str="dotlines"):
     """ 
 
     start_time=time.time()
-    global vectors
+    # global vectors
+
+    try:
+        user_session.vectors =  embedding_model.embed_documents(user_session.document_list)
+        print(f"Number of vectors: {len(user_session.vectors)}")
+        embedding_time = time.time() - start_time
+        print(f"Embedding Time: {embedding_time:.2f} seconds")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Embedding failed:{str(e)}")
 
 
-    vectors =  embedding_model.embed_documents(document_list)
-    print(f"Number of vectors: {len(vectors)}")
-    embedding_time = time.time() - start_time
-    print(f"Embedding Time: {embedding_time:.2f} seconds")
-
-
-
-# @app.get("/retrieve")
-# async def retrieve(query: str):
-
-#     return results
 
 
 @app.post("/store")
-async def store():
+async def store(user_session: UserSession = Depends(get_user_session)):
     start_time=time.time()
-    if created_or_not: 
-        store_bm25_index_and_chunks_in_mongodb(variable_list, document_list, namespace1)
-        print(f"BM25 index and chunks stored in MongoDB inside chunking route.")
-    else:
-        update_bm25_index_and_chunks_in_mongodb(variable_list, document_list, namespace1)
-        print(f"BM25 index updated with {len(document_list)} new documents inside chunking route.")
-    start_time=time.time()
-    ids = [str(i) for i in range(len(vectors))]
-    metadata_list = [{"text": chunk} for chunk in document_list]
-    sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=namespace1)
+    try:
+        if user_session.created_or_not: 
+            store_bm25_index_and_chunks_in_mongodb(user_session.variable_list, user_session.document_list, user_session.namespace)
+            print(f"BM25 index and chunks stored in MongoDB inside chunking route.")
+        else:
+            update_bm25_index_and_chunks_in_mongodb(user_session.variable_list, user_session.document_list, user_session.namespace)
+            print(f"BM25 index updated with {len(user_session.document_list)} new documents inside chunking route.")
+        start_time=time.time()
+        ids = [str(i+user_session.retrieved_chunk_length) for i in range(len(user_session.vectors))]
+        metadata_list = [{"text": chunk} for chunk in user_session.document_list]
+        await sending_to_pinecone(stats=stats, index=Pinecone_index, vectors=user_session.vectors, ids=ids, metadata_list=metadata_list, namespace=user_session.namespace)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storing failed:{str(e)}")
+        
+    
     vector_storing_time = time.time() - start_time
     print(f"Vector Storing Time: {vector_storing_time:.2f} seconds")
 

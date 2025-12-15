@@ -34,37 +34,65 @@ except Exception as e:
 
 
 def store_bm25_index_and_chunks_in_mongodb(bm25_index_variables, chunks, namespace):
-    bm25_data = {
-        'timestamp':  datetime.datetime.now(),
-        "namespace": namespace,
-        "bm25_index_variables": bm25_index_variables,
-        "chunk_length": len(chunks),
-        "chunks": [(i, chunks[i]) for i in range(len(chunks))]
-    }
-    collection.insert_one(bm25_data)
-    print("BM25 index and chunks stored in MongoDB.")
+    try:
+        bm25_data = {
+            'timestamp':  datetime.datetime.now(),
+            "namespace": namespace,
+            "bm25_index_variables": bm25_index_variables,
+            "chunk_length": len(chunks),
+            "chunks": [(i, chunks[i]) for i in range(len(chunks))]
+        }
+        collection.insert_one(bm25_data)
+        print("BM25 index and chunks stored in MongoDB.")
+    except Exception as e:
+        print(e)
+
+
 
 def retrieve_bm25_index_and_chunks_using_namespace(namespace):
-    data = collection.find_one({'namespace': namespace})
-    return data
-
+    try:
+        data = collection.find_one({'namespace': namespace})
+        return data
+    except Exception as e:
+        print(e)
+        return None
+        
 
 def retrieve_all():
-    return collection.find()
+    try:
+        return collection.find()
+    except Exception as e:
+        print(e)
+
 
 
 def update_bm25_index_and_chunks_in_mongodb(bm25_index_variables, new_chunks, namespace):
-    update_data = {
-        'timestamp':  datetime.datetime.now(),
-        "bm25_index_variables": bm25_index_variables,
-        'chunk_length': len(new_chunks),
-        "chunks": [(i, new_chunks[i]) for i in range(len(new_chunks))]
-    }
-    collection.update_one({'namespace': namespace}, {'$set': update_data})
-    print("BM25 index and chunks updated in MongoDB.")
+    try:
+        data =retrieve_bm25_index_and_chunks_using_namespace(namespace)
+        old_chunks=[]
+        old_chunk_length=0
+        if data is not None:
+            old_chunks = data['chunks']
+            old_chunk_length = data['chunk_length']
+        new_chunks=old_chunks+new_chunks
+        update_data = {
+            'timestamp':  datetime.datetime.now(),
+            "bm25_index_variables": bm25_index_variables,
+            'chunk_length': len(new_chunks),
+            "chunks": [(i+old_chunk_length, new_chunks[i]) for i in range(len(new_chunks))]
+        }
+        collection.update_one({'namespace': namespace}, {'$set': update_data})
+        print("BM25 index and chunks updated in MongoDB.")
+    except Exception as e:
+        print(e)
+
 
 def retrieve_chunks_from_mongodb(namespace, index_list):
-    data = collection.find_one({'namespace': namespace})
-    all_chunks = data['chunks']
-    selected_chunks = [all_chunks[i][1] for i in index_list]
-    return selected_chunks
+    try:
+        data = collection.find_one({'namespace': namespace})
+        all_chunks = data['chunks']
+        selected_chunks = [all_chunks[i][1] for i in index_list]
+        return selected_chunks
+    except Exception as e:
+        print(e)
+        return None
