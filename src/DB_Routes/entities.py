@@ -4,6 +4,9 @@ from .db_connection_new import Base
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
+from src.logging.logging import get_logger
+logger= get_logger("entities")
+
 
 def generate_uuid()->bytes:
     return uuid4().bytes

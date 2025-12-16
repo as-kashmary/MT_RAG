@@ -26,6 +26,11 @@ from src.DB_Routes.mongodb_implementation import (
     update_bm25_index_and_chunks_in_mongodb, 
     retrieve_chunks_from_mongodb)
 
+from src.logging.logging import configure_logging, get_logger
+from src.logging.request_id import RequestIDMiddleware
+
+configure_logging(level="INFO", service_name="admin-server")
+
 class UserSession:
     def __init__(self):
         self.document_list = []
@@ -59,24 +64,34 @@ async def lifespan(app: FastAPI):
     global embedding_model, Pinecone_index, stats
     start_time = time.time()
 
-    print("Starting up the RAG server...")
+    logger.info("Starting up the RAG server...")
 
     embedding_model= LocalEmbeddings("./models/multilingual-e5-large-instruct")
     embedding_model._load_model()
-    print(f"Embeddings model loaded. Total elapsed time: {time.time() - start_time:.2f} seconds")
+    logger.info(f"Embeddings model loaded. Total elapsed time: {time.time() - start_time:.2f} seconds")
     try:
         pc = Pinecone(api_key="pcsk_2ht9Mg_9VwrnZM7wQrAiCkEfUTQFLDsPui6p9VxkcKbCPvKsVSUaR9jZwmeQwwuUpbpGJv")
 
         Pinecone_index = pc.Index(host="https://test-11ejuti.svc.aped-4627-b74a.pinecone.io")
         stats=Pinecone_index.describe_index_stats()
-        print(stats)
+        logger.info(f"Pinecone connected. Stats: {stats}")
     except Exception as e:
+        logger.error(f"Pinecone connection failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Pinecone connection failed:{str(e)}")
 
     yield
-    print("Shutting down the RAG server...")
+    logger.info("Shutting down the RAG server...")
 
 app = FastAPI(lifespan=lifespan)
+
+
+"""
+Added RequestIDMiddleware to log request ids in logs for tracing.
+
+"""
+
+app.add_middleware(RequestIDMiddleware)
+logger = get_logger("admin_server")
 
 
 @app.post("/parser")
@@ -107,7 +122,6 @@ async def parser(path: str="documents",
         #iterate through all pdf files in the given path
         for file_name in os.listdir(path):
             file_path = os.path.join(path, file_name)
-            print(f"Processing file: {file_path}")
             if file_type_checker(file_name) == "txt":
                 content= read_txt_to_string(file_path)
             elif file_type_checker(file_name) == "docx":
@@ -116,11 +130,12 @@ async def parser(path: str="documents",
                 content= read_pdf_to_string(file_path)
             user_session.contents_list.append(content)
 
-        # print(contents_list)
 
         parsing_time = time.time() - start_time
-        print(f"Parsing Time: {parsing_time:.2f} seconds. ")
+        logger.info(f"Parsed {len(user_session.contents_list)} documents from {path} in {parsing_time:.2f} seconds.")
+
     except Exception as e:
+        logger.error(f"Parsing failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Parsing failed:{str(e)}")
 
 
@@ -152,7 +167,7 @@ async def chunk(namespace: str="dotlines",
     try:
         for content in user_session.contents_list:
             chunks= SemanticChunking(content, embedding_model)
-            print(f"Number of chunks: {len(chunks.get_chunks())}")
+            logger.info(f"Number of chunks created from a document: {len(chunks.get_chunks())}")
             user_session.document_list+=chunks.get_chunks()
 
         user_session.length_of_total_chunks=len(user_session.document_list)
@@ -162,14 +177,15 @@ async def chunk(namespace: str="dotlines",
             user_session.bm25=create_bm25_index(user_session.document_list)
             user_session.variable_list= user_session.bm25.return_variables()
             user_session.created_or_not= True
-            print(f"BM25 index created with {len(user_session.document_list)} documents inside chunking route.")
+            logger.info(f"BM25 index created with {len(user_session.document_list)} documents inside chunking route.")
         else:
-            print(f"BM25 index retrieved from MongoDB with {len(user_session.document_list)} documents inside chunking route.")
+            logger.info(f"BM25 index retrieved from MongoDB with {len(user_session.document_list)} documents inside chunking route.")
             user_session.bm25= create_bm25_index_v2(data['bm25_index_variables'])
             user_session.retrieved_chunk_length= data['chunk_length']
             user_session.bm25= new_create_BM25Okapi_without_corpus_index(user_session.document_list, user_session.bm25)
             user_session.variable_list= user_session.bm25.return_variables()
     except Exception as e:
+        logger.error(f"Chunking failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Chunking failed:{str(e)}")
 
     """
@@ -180,9 +196,8 @@ async def chunk(namespace: str="dotlines",
     So we are stil figuring out ways to avoid storing and passsing them in memory.
     If it required mongodb implementation then it can be done later.
     """
-
-    semnantic_chunking_time = time.time() - start_time
-    print(f"Parsing and Chunking Time: {semnantic_chunking_time:.2f} seconds. ")
+    chunking_time = time.time() - start_time
+    logger.info(f"Chunking completed in {chunking_time:.2f} seconds. Total chunks: {len(user_session.document_list)}")
 
 @app.get("/vectorizing")
 async def vectorizing(namespace: str="dotlines",
@@ -199,13 +214,15 @@ async def vectorizing(namespace: str="dotlines",
 
     try:
         user_session.vectors =  embedding_model.embed_documents(user_session.document_list)
-        print(f"Number of vectors: {len(user_session.vectors)}")
+        logger.info(f"Number of vectors: {len(user_session.vectors)}")
         embedding_time = time.time() - start_time
-        print(f"Embedding Time: {embedding_time:.2f} seconds")
+        logger.info(f"Embedding Time: {embedding_time:.2f} seconds")
     except Exception as e:
+        logger.error(f"Embedding failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Embedding failed:{str(e)}")
 
-
+    vectorizing_time = time.time() - start_time
+    logger.info(f"Vectorizing completed in {vectorizing_time:.2f} seconds.")
 
 
 @app.post("/store")
@@ -214,20 +231,21 @@ async def store(user_session: UserSession = Depends(get_user_session)):
     try:
         if user_session.created_or_not: 
             store_bm25_index_and_chunks_in_mongodb(user_session.variable_list, user_session.document_list, user_session.namespace)
-            print(f"BM25 index and chunks stored in MongoDB inside chunking route.")
+            logger.info(f"BM25 index and chunks stored in MongoDB inside chunking route.")
         else:
             update_bm25_index_and_chunks_in_mongodb(user_session.variable_list, user_session.document_list, user_session.namespace)
-            print(f"BM25 index updated with {len(user_session.document_list)} new documents inside chunking route.")
+            logger.info(f"BM25 index updated with {len(user_session.document_list)} new documents inside chunking route.")
         start_time=time.time()
         ids = [str(i+user_session.retrieved_chunk_length) for i in range(len(user_session.vectors))]
         metadata_list = [{"text": chunk} for chunk in user_session.document_list]
         await sending_to_pinecone(stats=stats, index=Pinecone_index, vectors=user_session.vectors, ids=ids, metadata_list=metadata_list, namespace=user_session.namespace)
     except Exception as e:
+        logger.error(f"Storing failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storing failed:{str(e)}")
         
     
     vector_storing_time = time.time() - start_time
-    print(f"Vector Storing Time: {vector_storing_time:.2f} seconds")
+    logger.info(f"Vector Storing Time: {vector_storing_time:.2f} seconds")
 
     
 

@@ -4,6 +4,9 @@ import time
 import os
 from typing import Literal
 
+from src.logging.logging import get_logger
+
+logger= get_logger("semantic_chunker")
 
 class SemanticChunking:
     """
@@ -42,6 +45,7 @@ class SemanticChunking:
         # Perform semantic chunking
         # start_time = time.time()
         self.semantic_docs = semantic_chunker.split_text(self.pdf_content)
+        logger.info(f"Semantic chunking completed. Total chunks created: {len(self.semantic_docs)} . With breakpoint type: {breakpoint_type} and breakpoint amount: {breakpoint_amount}.")
         # self.time_records = {'Chunking': time.time() - start_time}
         # print(f"Semantic Chunking Time: {self.time_records['Chunking']:.2f} seconds")
         

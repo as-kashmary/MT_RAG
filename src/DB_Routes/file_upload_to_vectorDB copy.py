@@ -44,7 +44,7 @@ if company:
         ids = [str(i) for i in range(len(vectors))]
         metadata_list = [{"text": chunk} for chunk in chunks.get_chunks()]
         try:
-            await sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=company_name)
+            sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=company_name)
             print(f"File {file.file_name} processed and uploaded to vector DB.")
             update_file_status_successful(file_id=file.id, session=session)
             # delete the file after processing  

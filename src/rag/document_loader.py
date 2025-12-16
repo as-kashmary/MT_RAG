@@ -3,6 +3,10 @@ from langchain_community.document_loaders import TextLoader,PyPDFLoader, Docx2tx
 import chardet
 import json
 
+from src.logging.logging import get_logger
+
+logger= get_logger("document_loader")
+
 
 def determine_encoding(path):
     with open(path, "rb") as f:
@@ -22,7 +26,6 @@ def read_txt_to_string(path):
         str: The content of the PDF file as a string.
     """
     encoding_type = determine_encoding(path)
-    print(f"Determined encoding: {encoding_type}")
 
     loader = TextLoader(path, encoding=encoding_type)
     documents = loader.load()
@@ -41,7 +44,6 @@ def read_pdf_to_string(path):
 
     loader = PyPDFLoader(path)
     documents = loader.load()
-    print(documents)
     page_contents=[doc.page_content for doc in documents]
 
     with open("text.txt", 'w', encoding="utf-8") as f:
@@ -49,11 +51,11 @@ def read_pdf_to_string(path):
             f.write(i)
 
 
-    print(f"Loaded {len(page_contents)} documents from {path}.")
     page_content=""
     for i in page_contents:
         page_content+=i+'\n'
-
+    
+    logger.info(f"Concatenated {len(page_contents)} pages into a single string.")
     return page_content
 
 def read_docx_to_string(path):

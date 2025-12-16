@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 #importing aiomysql
 import aiomysql
 
+from src.logging.logging import get_logger
+logger= get_logger("db_connection_new")
+
 load_dotenv()
 
 mysql_user=os.getenv('mysql_user')
@@ -22,7 +25,8 @@ When we are using async functions to interact with mysql db, the session must al
 Otherwise we won't be able to harness all the async features of async engine
 """
 DATABASE_URL=f"mysql+aiomysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
-print(DATABASE_URL)
+logger.info(f"Connecting to database at {DATABASE_URL}")
+
 
 engine= create_async_engine(
     DATABASE_URL,
@@ -46,7 +50,7 @@ Base=declarative_base()
 
 
 DBSession=Annotated[AsyncSession, Depends(get_db)]
-
+logger.info("Async DBSession configured successfully.")
 
 """
 #This implementation for sync database

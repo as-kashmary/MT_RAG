@@ -1,8 +1,14 @@
-from src.rag.rank_bm25 import BM25Okapi, BM25Okapi_without_corpus
 from typing import List
-from langchain_core.documents.base import Document
+
 import numpy as np
+from langchain_core.documents.base import Document
+
+from src.logging.logging import get_logger
+from src.rag.rank_bm25 import BM25Okapi, BM25Okapi_without_corpus
 from src.rag.vector_store import query_pinecone
+
+
+logger = get_logger("fusion_retrieval")
 
 
 
@@ -109,12 +115,19 @@ async def fusion_retrieval(stats, Pinecone_index, length_of_total_chunks, embedd
     # print(f"Performing BM25 search for query: {query}...")
     bm25_scores = bm25.get_scores(query.split())
 
-    print(f"BM25 scores computed for {len(bm25_scores)} documents.")
+    logger.info("BM25 scores computed", extra={"document_count": len(bm25_scores), "namespace": namespace})
 
     # Step 3: Perform vector search
     #query_pinecone(query,namespace,embedding_model, top_k=3)
     vector_results= await query_pinecone(stats, index=Pinecone_index, query=query, namespace=namespace, embedding_model=embedding_model, top_k=length_of_total_chunks)
-    print(f"Vector search completed for query: {query}. namespace: {namespace} vector results count: {len(vector_results)}")
+    logger.info(
+        "Vector search completed",
+        extra={
+            "query": query,
+            "namespace": namespace,
+            "result_count": len(vector_results),
+        },
+    )
     # print(f"Vector search returned {len(vector_results['matches'])} matches.")
     
     # Step 4: Normalize scores

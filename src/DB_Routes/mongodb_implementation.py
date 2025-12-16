@@ -4,6 +4,9 @@ import datetime
 import ssl
 import certifi
 
+from src.logging.logging import get_logger
+logger= get_logger("mongodb_implementation")
+
 
 user="ahhask4127_db_user"
 password="56lqIaZoyLWvE3l8"
@@ -26,11 +29,9 @@ collection= database['BM25_index']
 # Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-
-    collection.find_one()
+    logger.info("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
-    print(e)
+    logger.error(f"Error connecting to MongoDB: {str(e)}")
 
 
 def store_bm25_index_and_chunks_in_mongodb(bm25_index_variables, chunks, namespace):
@@ -43,18 +44,19 @@ def store_bm25_index_and_chunks_in_mongodb(bm25_index_variables, chunks, namespa
             "chunks": [(i, chunks[i]) for i in range(len(chunks))]
         }
         collection.insert_one(bm25_data)
-        print("BM25 index and chunks stored in MongoDB.")
+        logger.info("BM25 index and chunks stored in MongoDB.")
     except Exception as e:
-        print(e)
+        logger.error(f"Error storing BM25 index and chunks in MongoDB: {str(e)}")
 
 
 
 def retrieve_bm25_index_and_chunks_using_namespace(namespace):
     try:
         data = collection.find_one({'namespace': namespace})
+        logger.info(f"Retrieved BM25 index and chunks for namespace {namespace}")
         return data
     except Exception as e:
-        print(e)
+        logger.error(f"Error retrieving BM25 index and chunks from MongoDB: {str(e)}")
         return None
         
 
@@ -82,9 +84,9 @@ def update_bm25_index_and_chunks_in_mongodb(bm25_index_variables, new_chunks, na
             "chunks": [(i+old_chunk_length, new_chunks[i]) for i in range(len(new_chunks))]
         }
         collection.update_one({'namespace': namespace}, {'$set': update_data})
-        print("BM25 index and chunks updated in MongoDB.")
+        logger.info("BM25 index and chunks updated in MongoDB.")
     except Exception as e:
-        print(e)
+        logger.error(f"Error updating BM25 index and chunks in MongoDB: {str(e)}")
 
 
 def retrieve_chunks_from_mongodb(namespace, index_list):
@@ -92,7 +94,8 @@ def retrieve_chunks_from_mongodb(namespace, index_list):
         data = collection.find_one({'namespace': namespace})
         all_chunks = data['chunks']
         selected_chunks = [all_chunks[i][1] for i in index_list]
+        logger.info(f"Retrieved selected chunks for namespace {namespace}")
         return selected_chunks
     except Exception as e:
-        print(e)
+        logger.error(f"Error retrieving chunks from MongoDB: {str(e)}")
         return None

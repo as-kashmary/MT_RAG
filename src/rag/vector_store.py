@@ -1,4 +1,7 @@
 from pinecone import Pinecone
+from src.logging.logging import get_logger
+
+logger= get_logger("vector_store")
 
 
 async def retrieve_namespace(stats, namespace)-> bool:
@@ -8,6 +11,7 @@ async def retrieve_namespace(stats, namespace)-> bool:
         else:
             return True
     except Exception as e:
+        logger.error(f"Pinecone connection failed:{str(e)}")
         raise Exception(f"Pinecone connection failed:{str(e)}")
     
 
@@ -18,6 +22,7 @@ async def retrieve_length_of_namespace(stats, namespace)-> int:
         else:
             return stats["namespaces"][namespace]["vector_count"]
     except Exception as e:
+        logger.error(f"Pinecone connection failed:{str(e)}")
         raise Exception(f"Pinecone connection failed:{str(e)}")
     
 
@@ -40,9 +45,11 @@ async def sending_to_pinecone(stats, index, vectors, ids, metadata_list, namespa
             vectors=to_upsert,
             namespace=namespace
         )
+        logger.info(f"Upserted {len(vectors)} vectors to Pinecone in namespace '{namespace}'.")
         return None
 
     except Exception as e:
+        logger.error(f"Pinecone connection failed:{str(e)}")
         raise Exception(f"Pinecone connection failed:{str(e)}")
     
 
@@ -51,7 +58,6 @@ async def query_pinecone(stats, index, query: str,namespace:str ,embedding_model
     try:
 
         query_vector = embedding_model.embed_query(query)
-        # print(f"Query vector : {query_vector}")
         results=index.query(
             namespace=namespace,
             vector=query_vector, 
@@ -59,18 +65,17 @@ async def query_pinecone(stats, index, query: str,namespace:str ,embedding_model
             include_metadata=True,
             include_values=False
         )
-        # print(f"Query results: {results}")
         retrieved_chunks=[]
         # Sort the results[matches] according to i['id']. Sort will be done considering the 'id' as integer
         results['matches'].sort(key=lambda x: int(x['id']))
         
 
         for i in results['matches']:
-            # print(f"ID: {i['id']}, Score: {i['score']}, Metadata: {i['metadata']['text']}")
-            print(f"ID: {i['id']}")
             retrieved_chunks.append((i['metadata']['text'], i['score']))
+        logger.info(f"Queried Pinecone in namespace '{namespace}' with query '{query}'. Retrieved {len(retrieved_chunks)} chunks.")
         return retrieved_chunks
     except Exception as e:
+        logger.error(f"Pinecone connection failed:{str(e)}")
         raise Exception(f"Pinecone connection failed:{str(e)}")
         
 

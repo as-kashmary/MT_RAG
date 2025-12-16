@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import  AsyncSession
 from hashlib import sha256
 import os
 
+from src.logging.logging import get_logger 
+logger= get_logger("file_routes")
+
 
 class FileCreateForm:
     def __init__(
@@ -49,6 +52,7 @@ async def _get_all_files_id_from_db(db:AsyncSession, Company_id: UUID )-> list[U
 
     result= await db.execute(select(FileModel.id).filter_by(company_id=encode_uuid(Company_id)))
     rows= result.scalars().all()
+    logger.info(f"Retrieved file IDs for company {Company_id}: {rows}")
     return rows
 
 
@@ -60,16 +64,19 @@ async def _get_all_files_by_company_pending(db:AsyncSession, Company_id: UUID )-
     """
     result = await db.execute(select(FileModel.id).filter_by(company_id=encode_uuid(Company_id), status="pending"))
     rows= result.scalars().all()
+    logger.info(f"Retrieved pending file IDs for company {Company_id}: {rows}")
     return rows
 
 async def _update_file_status_running(db:AsyncSession, file_id: UUID)->None:
     result= await db.execute(select(FileModel).filter_by(id=encode_uuid(file_id)))
     file_record= result.scalars().first()
-    print(file_record)
+    logger.info(f"File record before updating to running: {file_record}")
     if file_record:
         file_record.status= "running"
         await db.commit()
+        logger.info(f"Updated status for file ID {file_id} to running")
     else:
+        logger.warning(f"No file found with ID {file_id} to update to running")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No file found with ID {file_id}")
 
 async def _update_file_status_successful(db:AsyncSession, file_id: UUID)->None:
@@ -77,24 +84,28 @@ async def _update_file_status_successful(db:AsyncSession, file_id: UUID)->None:
 
     result= await db.execute(select(FileModel).filter_by(id=encode_uuid(file_id)))
     file_record= result.scalars().first()
-    print(file_record)
+    logger.info(f"File record before updating to successful: {file_record}")
     if file_record:
         file_record.status = "successful"
         await db.commit()
-        print(f"Updated successful status for file ID {file_id} to successful")
+        logger.info(f"Updated status for file ID {file_id} to successful")
     else:
-        print(f"No file found with ID {file_id}")
+        logger.warning(f"No file found with ID {file_id} to update to successful")
 
 async def _update_file_status_failed(db:AsyncSession, file_id: UUID)->None:
-    result= await db.execute(select(FileModel).filter_by(id=encode_uuid(file_id)))
-    file_record= result.scalars().first()
-    print(file_record)
-    if file_record:
-        file_record.status = "failed"
-        await db.commit()
-        print(f"Updated failed status for file ID {file_id} to failed")
-    else:
-        print(f"No file found with ID {file_id}")
+    try:    
+        result= await db.execute(select(FileModel).filter_by(id=encode_uuid(file_id)))
+        file_record= result.scalars().first()
+        logger.info(f"File record before updating to failed: {file_record}")
+        if file_record:
+            file_record.status = "failed"
+            await db.commit()
+            logger.info(f"Updated status for file ID {file_id} to failed")
+        else:
+            logger.warning(f"No file found with ID {file_id} to update to failed")
+    except Exception as e:
+        logger.error(f"Error updating file status to failed for file ID {file_id}: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
 
 
 
@@ -133,14 +144,17 @@ async def create_file(
         existing= await _hash_exist_or_not(hashed, db)
         file_type=file.content_type
         if existing:
+            logger.warning(f"The file {file_name} already exists with hash {hashed}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f" The file already exists")
         else:
             new_file=await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type)
             db.add(new_file)
             await db.commit()
+            logger.info(f"Created new file with name: {file_name} for company_id: {company_id}")
         return None
 
     except Exception as e:
+        logger.error(f"Failure in creating file {file_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in creating file {str(e)}")
 
 
@@ -152,23 +166,26 @@ async def create_file_by_directory(db:DBSession, directory_path: str, company_id
     try:
         for file_name in os.listdir(directory_path):
             file_path= os.path.join(directory_path, file_name)
-            print(f"Processing file: {file_path}")
+            logger.info(f"Processing file: {file_path}")
             file_type= file_name.split(".")[-1]
             with open(file_path, "rb") as f:
                 file_bytes = f.read()
             
-            print(f"file_type: {file_type}")
+            logger.info(f"file_type: {file_type}")
             hashed= _calculate_file_hash(file_bytes)
             existing= await _hash_exist_or_not(hashed, db)  
             if existing:
+                logger.warning(f"The file {file_name} already exists with hash {hashed}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f" The file already exists")
             else:
                 new_file= await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type)
                 db.add(new_file)
                 await db.commit()
+                logger.info(f"Created new file with name: {file_name} for company_id: {company_id}")
         return None
 
     except Exception as e:
+        logger.error(f"Failure in uploading file by directory: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in uploading file by directory: {str(e)}")
 
 
@@ -178,10 +195,12 @@ async def get_all_file_id_by_company(db:DBSession, company_id: str)->list[str]:
     try:
         file_id= await  _get_all_files_id_from_db(db, company_id)
         if len(file_id)==0:
+            logger.warning(f"No files found for company {company_id}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
             
         return [str(decode_uuid(id)) for id in file_id]
     except Exception as e:
+        logger.error(f"Error retrieving file IDs for company {company_id}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
     
 @router.get("/{company_id}/pending", status_code=status.HTTP_200_OK, response_model=list[UUID])
@@ -189,9 +208,11 @@ async def get_all_file_id_by_company_pending(db:DBSession, company_id: str)->lis
     try:
         file_id= await _get_all_files_by_company_pending(db, company_id)
         if len(file_id)==0:
+            logger.warning(f"No pending files found for company {company_id}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
         return file_id
     except Exception as e:
+        logger.error(f"Error retrieving pending file IDs for company {company_id}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
 
 @router.post("/{file_id}/running", status_code=status.HTTP_200_OK)
@@ -199,6 +220,7 @@ async def update_file_status_running(db:DBSession, file_id: str)->None:
     try:
         await _update_file_status_running(db, file_id)
     except Exception as e:
+        logger.error(f"Error updating file status to running for file ID {file_id}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
         
 
@@ -207,6 +229,7 @@ async def update_file_status_successful(db:DBSession, file_id: str)->None:
     try:
         await _update_file_status_successful(db, file_id)
     except Exception as e:
+        logger.error(f"Error updating file status to successful for file ID {file_id}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
       
 @router.post("/{file_id}/failed", status_code=status.HTTP_200_OK)
@@ -214,5 +237,6 @@ async def update_file_status_failed(db:DBSession, file_id: str)->None:
     try:
        await _update_file_status_failed(db, file_id)
     except Exception as e:
+        logger.error(f"Error updating file status to failed for file ID {file_id}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
       

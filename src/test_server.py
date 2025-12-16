@@ -15,7 +15,9 @@ from src.rag.semantic_chunker import SemanticChunking
 from src.rag.local_embeder import LocalEmbeddings
 from src.rag.vector_store import sending_to_pinecone
 
-
+from src.logging.logging import configure_logging, get_logger
+configure_logging(level="INFO", service_name="test-server")
+logger= get_logger("test_server")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

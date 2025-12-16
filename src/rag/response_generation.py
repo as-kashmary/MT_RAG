@@ -1,4 +1,6 @@
 from ollama import Client
+from src.logging.logging import get_logger
+logger= get_logger("response_generation")
 
 class ResponseGenerator:
     def __init__(self, query, context):
@@ -21,7 +23,7 @@ class ResponseGenerator:
         prompt=f"""
         Using the following context, provide a detailed and informative answer to the query. 
         '\nContext: {self.context}\nQuery: {self.query}\nAnswer:"""
-        print(prompt)
+        logger.info(f"Generated prompt for LLM: {prompt}")
         
         messages = [
             {
@@ -30,6 +32,7 @@ class ResponseGenerator:
             },
         ]
         response = ""
+        logger.info("Sending request to LLM: deepseek-v3.1:671b-cloud for response generation.")
         for part in self.llm.chat('deepseek-v3.1:671b-cloud', messages=messages, stream=True):
             # Get the latest content chunk
             chunk = part['message']['content']
