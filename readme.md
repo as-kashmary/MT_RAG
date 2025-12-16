@@ -15,17 +15,13 @@ python model_download.py
 
 
 
-5. Then run
-Either:
-You can run the application just runing
-"
-python server\server.py
-"
+5. 
+To run the admin server:
+python -m src.admin_server
 
-Or:
-You can run the pipeline
-"
-python src\main.py
+
+To run the user server:
+python -m src.user_server
 
 "
 

@@ -3,17 +3,17 @@ import uvicorn
 from contextlib import asynccontextmanager
 import os
 
-from DB_Routes.Company_routes import router as company_router
-from DB_Routes.User_routes import router as user_router
-from DB_Routes.File_routes import router as file_router
-from DB_Routes.query_routes import router as query_router
-from DB_Routes.Admin_routes import router as admin_router
-from DB_Routes.db_connection_new import DBSession, Base
+from src.DB_Routes.Company_routes import router as company_router
+from src.DB_Routes.User_routes import router as user_router
+from src.DB_Routes.File_routes import router as file_router
+from src.DB_Routes.query_routes import router as query_router
+from src.DB_Routes.Admin_routes import router as admin_router
+from src.DB_Routes.db_connection_new import DBSession, Base
 
-from src.document_loader import read_txt_to_string
-from src.semantic_chunker import SemanticChunking
-from src.local_embeder import LocalEmbeddings
-from src.vector_store import sending_to_pinecone
+from src.rag.document_loader import read_txt_to_string
+from src.rag.semantic_chunker import SemanticChunking
+from src.rag.local_embeder import LocalEmbeddings
+from src.rag.vector_store import sending_to_pinecone
 
 
 

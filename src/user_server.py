@@ -5,12 +5,14 @@ import uvicorn
 import time
 from contextlib import asynccontextmanager
 
-from src.fusion_retrieval import fusion_retrieval, create_bm25_index_v2
-from src.response_generation import ResponseGenerator
-from src.local_embeder import LocalEmbeddings
+from src.rag.fusion_retrieval import fusion_retrieval, create_bm25_index_v2
+from src.rag.response_generation import ResponseGenerator
+from src.rag.local_embeder import LocalEmbeddings
 
-from DB_Routes.monogodb_implementation import retrieve_all
+from src.DB_Routes.mongodb_implementation import retrieve_all
 from pinecone import Pinecone
+
+
 
 
 class UserSession:
@@ -22,6 +24,7 @@ class UserSession:
         
 
 sessions = {}
+
 
 def get_user_session(user_id: str):
     if user_id not in sessions:

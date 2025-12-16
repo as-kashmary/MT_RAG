@@ -13,14 +13,18 @@ from pinecone import Pinecone
 # PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # sys.path.insert(0, PROJECT_ROOT)
 
-from src.document_loader import read_txt_to_string, read_pdf_to_string, read_docx_to_string
-from src.vector_store import sending_to_pinecone, retrieve_namespace, query_pinecone, retrieve_length_of_namespace
-from src.fusion_retrieval import fusion_retrieval, create_bm25_index, new_create_BM25Okapi_index, new_create_BM25Okapi_without_corpus_index, create_bm25_index_v2
-from src.semantic_chunker import SemanticChunking
+from src.rag.document_loader import read_txt_to_string, read_pdf_to_string, read_docx_to_string
+from src.rag.vector_store import sending_to_pinecone, retrieve_namespace, query_pinecone, retrieve_length_of_namespace
+from src.rag.fusion_retrieval import fusion_retrieval, create_bm25_index, new_create_BM25Okapi_index, new_create_BM25Okapi_without_corpus_index, create_bm25_index_v2
+from src.rag.semantic_chunker import SemanticChunking
 from contextlib import asynccontextmanager
 
-from src.local_embeder import LocalEmbeddings
-from DB_Routes.monogodb_implementation import store_bm25_index_and_chunks_in_mongodb, retrieve_bm25_index_and_chunks_using_namespace, update_bm25_index_and_chunks_in_mongodb, retrieve_chunks_from_mongodb
+from src.rag.local_embeder import LocalEmbeddings
+from src.DB_Routes.mongodb_implementation import (
+    store_bm25_index_and_chunks_in_mongodb, 
+    retrieve_bm25_index_and_chunks_using_namespace, 
+    update_bm25_index_and_chunks_in_mongodb, 
+    retrieve_chunks_from_mongodb)
 
 class UserSession:
     def __init__(self):

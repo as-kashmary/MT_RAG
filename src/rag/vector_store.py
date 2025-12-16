@@ -61,9 +61,10 @@ async def query_pinecone(stats, index, query: str,namespace:str ,embedding_model
         )
         # print(f"Query results: {results}")
         retrieved_chunks=[]
-        # Sort the results[matches] according to i['id']
-        results['matches'].sort(key=lambda x: x['id'])
+        # Sort the results[matches] according to i['id']. Sort will be done considering the 'id' as integer
+        results['matches'].sort(key=lambda x: int(x['id']))
         
+
         for i in results['matches']:
             # print(f"ID: {i['id']}, Score: {i['score']}, Metadata: {i['metadata']['text']}")
             print(f"ID: {i['id']}")

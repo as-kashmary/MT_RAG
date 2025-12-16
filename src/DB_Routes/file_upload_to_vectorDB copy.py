@@ -5,13 +5,19 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from src.document_loader import read_txt_to_string
-from src.semantic_chunker import SemanticChunking
-from src.embeder import HFInferenceEmbeddings
-from src.vector_store import sending_to_pinecone
+from src.rag.document_loader import read_txt_to_string
+from src.rag.semantic_chunker import SemanticChunking
+from src.rag.local_embeder import LocalEmbeddings
+from src.rag.vector_store import sending_to_pinecone
+
+
+from .Company_routes import router as company_router
+from .User_routes import router as user_router
+from .File_routes import router as file_router
+from .query_routes import router as query_router
+
 from db_update import update_file_status_successful, update_file_status_failed, update_file_status_running
 from db_fetch import fetch_company_by_name, fetch_file_by_company_pending
-from src.local_embeder import LocalEmbeddings
 
 
 embeddings= LocalEmbeddings("./models/multilingual-e5-large-instruct")
@@ -38,7 +44,7 @@ if company:
         ids = [str(i) for i in range(len(vectors))]
         metadata_list = [{"text": chunk} for chunk in chunks.get_chunks()]
         try:
-            sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=company_name)
+            await sending_to_pinecone(vectors=vectors, ids=ids, metadata_list=metadata_list, namespace=company_name)
             print(f"File {file.file_name} processed and uploaded to vector DB.")
             update_file_status_successful(file_id=file.id, session=session)
             # delete the file after processing  

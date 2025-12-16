@@ -1,8 +1,8 @@
-from src.rank_bm25 import BM25Okapi, BM25Okapi_without_corpus
+from src.rag.rank_bm25 import BM25Okapi, BM25Okapi_without_corpus
 from typing import List
 from langchain_core.documents.base import Document
 import numpy as np
-from src.vector_store import query_pinecone
+from src.rag.vector_store import query_pinecone
 
 
 
