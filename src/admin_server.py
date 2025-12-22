@@ -31,7 +31,7 @@ from src.logging.request_id import RequestIDMiddleware
 
 configure_logging(level="INFO", service_name="admin-server")
 
-class UserSession:
+class AdminSession:
     def __init__(self):
         self.document_list = []
         self.namespace = None
@@ -48,10 +48,10 @@ class UserSession:
 
 sessions = {}
 
-def get_user_session(user_id: str):
-    if user_id not in sessions:
-        sessions[user_id] = UserSession()
-    return sessions[user_id]
+def get_admin_session(admin_id: str):
+    if admin_id not in sessions:
+        sessions[admin_id] = AdminSession()
+    return sessions[admin_id]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -96,7 +96,7 @@ logger = get_logger("admin_server")
 
 @app.post("/parser")
 async def parser(path: str="documents",
-                 user_session: UserSession = Depends(get_user_session)):
+                 admin_session: AdminSession = Depends(get_admin_session)):
     """
     Here, we parse different document types and return their contents as strings.
     This will be called before chunking.
@@ -107,7 +107,7 @@ async def parser(path: str="documents",
     try:
 
         start_time=time.time()
-        user_session.contents_list = []
+        admin_session.contents_list = []
 
         def file_type_checker(file_name):
             if file_name.endswith(".pdf"):
@@ -128,11 +128,11 @@ async def parser(path: str="documents",
                 content= read_docx_to_string(file_path)
             elif file_type_checker(file_name) == "pdf":
                 content= read_pdf_to_string(file_path)
-            user_session.contents_list.append(content)
+            admin_session.contents_list.append(content)
 
 
         parsing_time = time.time() - start_time
-        logger.info(f"Parsed {len(user_session.contents_list)} documents from {path} in {parsing_time:.2f} seconds.")
+        logger.info(f"Parsed {len(admin_session.contents_list)} documents from {path} in {parsing_time:.2f} seconds.")
 
     except Exception as e:
         logger.error(f"Parsing failed: {str(e)}")
@@ -141,10 +141,10 @@ async def parser(path: str="documents",
 
 @app.post("/chunk")
 async def chunk(namespace: str="dotlines",
-                 user_session: UserSession = Depends(get_user_session)):
+                 admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
     # global document_list, bm25, length_of_total_chunks, created_or_not, variable_list, namespace1
-    user_session.namespace= namespace
+    admin_session.namespace= namespace
     """
     28/11/2025
     Here, we chunk the parsed document contents into smaller semantic chunks.
@@ -165,25 +165,25 @@ async def chunk(namespace: str="dotlines",
 
     """
     try:
-        for content in user_session.contents_list:
+        for content in admin_session.contents_list:
             chunks= SemanticChunking(content, embedding_model)
             logger.info(f"Number of chunks created from a document: {len(chunks.get_chunks())}")
-            user_session.document_list+=chunks.get_chunks()
+            admin_session.document_list+=chunks.get_chunks()
 
-        user_session.length_of_total_chunks=len(user_session.document_list)
-        data = retrieve_bm25_index_and_chunks_using_namespace(user_session.namespace)
-        user_session.created_or_not= False
+        admin_session.length_of_total_chunks=len(admin_session.document_list)
+        data = retrieve_bm25_index_and_chunks_using_namespace(admin_session.namespace)
+        admin_session.created_or_not= False
         if data is None:
-            user_session.bm25=create_bm25_index(user_session.document_list)
-            user_session.variable_list= user_session.bm25.return_variables()
-            user_session.created_or_not= True
-            logger.info(f"BM25 index created with {len(user_session.document_list)} documents inside chunking route.")
+            admin_session.bm25=create_bm25_index(admin_session.document_list)
+            admin_session.variable_list= admin_session.bm25.return_variables()
+            admin_session.created_or_not= True
+            logger.info(f"BM25 index created with {len(admin_session.document_list)} documents inside chunking route.")
         else:
-            logger.info(f"BM25 index retrieved from MongoDB with {len(user_session.document_list)} documents inside chunking route.")
-            user_session.bm25= create_bm25_index_v2(data['bm25_index_variables'])
-            user_session.retrieved_chunk_length= data['chunk_length']
-            user_session.bm25= new_create_BM25Okapi_without_corpus_index(user_session.document_list, user_session.bm25)
-            user_session.variable_list= user_session.bm25.return_variables()
+            logger.info(f"BM25 index retrieved from MongoDB with {len(admin_session.document_list)} documents inside chunking route.")
+            admin_session.bm25= create_bm25_index_v2(data['bm25_index_variables'])
+            admin_session.retrieved_chunk_length= data['chunk_length']
+            admin_session.bm25= new_create_BM25Okapi_without_corpus_index(admin_session.document_list, admin_session.bm25)
+            admin_session.variable_list= admin_session.bm25.return_variables()
     except Exception as e:
         logger.error(f"Chunking failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Chunking failed:{str(e)}")
@@ -197,11 +197,11 @@ async def chunk(namespace: str="dotlines",
     If it required mongodb implementation then it can be done later.
     """
     chunking_time = time.time() - start_time
-    logger.info(f"Chunking completed in {chunking_time:.2f} seconds. Total chunks: {len(user_session.document_list)}")
+    logger.info(f"Chunking completed in {chunking_time:.2f} seconds. Total chunks: {len(admin_session.document_list)}")
 
 @app.get("/vectorizing")
 async def vectorizing(namespace: str="dotlines",
-                    user_session: UserSession = Depends(get_user_session)):
+                    admin_session: AdminSession = Depends(get_admin_session)):
     """
     28/11/2025
     Chunks are stored in document_list global variable after chunking.
@@ -213,8 +213,8 @@ async def vectorizing(namespace: str="dotlines",
     # global vectors
 
     try:
-        user_session.vectors =  embedding_model.embed_documents(user_session.document_list)
-        logger.info(f"Number of vectors: {len(user_session.vectors)}")
+        admin_session.vectors =  embedding_model.embed_documents(admin_session.document_list)
+        logger.info(f"Number of vectors: {len(admin_session.vectors)}")
         embedding_time = time.time() - start_time
         logger.info(f"Embedding Time: {embedding_time:.2f} seconds")
     except Exception as e:
@@ -226,19 +226,19 @@ async def vectorizing(namespace: str="dotlines",
 
 
 @app.post("/store")
-async def store(user_session: UserSession = Depends(get_user_session)):
+async def store(admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
     try:
-        if user_session.created_or_not: 
-            store_bm25_index_and_chunks_in_mongodb(user_session.variable_list, user_session.document_list, user_session.namespace)
+        if admin_session.created_or_not: 
+            store_bm25_index_and_chunks_in_mongodb(admin_session.variable_list, admin_session.document_list, admin_session.namespace)
             logger.info(f"BM25 index and chunks stored in MongoDB inside chunking route.")
         else:
-            update_bm25_index_and_chunks_in_mongodb(user_session.variable_list, user_session.document_list, user_session.namespace)
-            logger.info(f"BM25 index updated with {len(user_session.document_list)} new documents inside chunking route.")
+            update_bm25_index_and_chunks_in_mongodb(admin_session.variable_list, admin_session.document_list, admin_session.namespace)
+            logger.info(f"BM25 index updated with {len(admin_session.document_list)} new documents inside chunking route.")
         start_time=time.time()
-        ids = [str(i+user_session.retrieved_chunk_length) for i in range(len(user_session.vectors))]
-        metadata_list = [{"text": chunk} for chunk in user_session.document_list]
-        await sending_to_pinecone(stats=stats, index=Pinecone_index, vectors=user_session.vectors, ids=ids, metadata_list=metadata_list, namespace=user_session.namespace)
+        ids = [str(i+admin_session.retrieved_chunk_length) for i in range(len(admin_session.vectors))]
+        metadata_list = [{"text": chunk} for chunk in admin_session.document_list]
+        await sending_to_pinecone(stats=stats, index=Pinecone_index, vectors=admin_session.vectors, ids=ids, metadata_list=metadata_list, namespace=admin_session.namespace)
     except Exception as e:
         logger.error(f"Storing failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storing failed:{str(e)}")

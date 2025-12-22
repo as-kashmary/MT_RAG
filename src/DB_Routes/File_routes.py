@@ -188,6 +188,26 @@ async def create_file_by_directory(db:DBSession, directory_path: str, company_id
         logger.error(f"Failure in uploading file by directory: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in uploading file by directory: {str(e)}")
 
+@router.get("/download/{company_id}", status_code=status.HTTP_200_OK)
+async def download_files_by_company(company_id: str, db:DBSession)->None:
+    try:
+        result= await db.execute(select(FileModel).filter_by(company_id=encode_uuid(company_id)))
+        files= result.scalars().all()
+        if not files:
+            logger.warning(f"No files found for company {company_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        # The files.file_data is in bytes format, so we need to convert it to bytes
+        for file in files:
+            # Save the file.file_data to download_dir
+            file_path= os.path.join("download_dir", file.file_name)
+            with open(file_path, "wb") as f:
+                f.write(file.file_data)
+            logger.info(f"File {file.file_name} downloaded to {file_path}")
+        return None
+    except Exception as e:
+        logger.error(f"Error downloading files for company {company_id}: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
+
 
 
 @router.get("/ids", status_code=status.HTTP_200_OK, response_model=list[str])
