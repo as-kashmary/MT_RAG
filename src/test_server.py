@@ -8,6 +8,7 @@ from src.DB_Routes.User_routes import router as user_router
 from src.DB_Routes.File_routes import router as file_router
 from src.DB_Routes.query_routes import router as query_router
 from src.DB_Routes.Admin_routes import router as admin_router
+from src.DB_Routes.product_routes import router as product_router
 from src.DB_Routes.db_connection_new import DBSession, Base
 
 from src.rag.document_loader import read_txt_to_string
@@ -38,6 +39,7 @@ app.include_router(user_router)
 app.include_router(file_router)
 app.include_router(query_router)
 app.include_router(admin_router)
+app.include_router(product_router)
 
 if __name__ == "__main__":
 

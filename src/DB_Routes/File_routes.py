@@ -21,10 +21,12 @@ class FileCreateForm:
         file_name: str = Form(...),
         company_id: str = Form(...),
         file: UploadFile = File(...),
+        product_id: str = Form(...)
     ):
         self.file_name = file_name
         self.company_id = company_id
         self.file= file
+        self.product_id= product_id
 
     
 
@@ -109,13 +111,14 @@ async def _update_file_status_failed(db:AsyncSession, file_id: UUID)->None:
 
 
 
-async def _creating_file_object(file_name: str, company_id: str, file_bytes: bytes, hashed: str, file_type: str):
+async def _creating_file_object(file_name: str, company_id: str, file_bytes: bytes, hashed: str, file_type: str, product_id: str)->FileModel:
     new_file= FileModel(
         file_name=file_name,
         company_id=encode_uuid(company_id),
         file_data=file_bytes,
         file_hash=hashed,
-        file_format= file_type
+        file_format= file_type,
+        product_id= encode_uuid(product_id)
 
     )
     return new_file
@@ -130,6 +133,7 @@ async def create_file(
                       db:DBSession,
                       file_name: str =Form(...) ,
                       company_id: str =Form(...),
+                      product_id: str =Form(...),
                       file: UploadFile = File(...))->None:
     try:
         """
@@ -147,7 +151,7 @@ async def create_file(
             logger.warning(f"The file {file_name} already exists with hash {hashed}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f" The file already exists")
         else:
-            new_file=await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type)
+            new_file=await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type, product_id)
             db.add(new_file)
             await db.commit()
             logger.info(f"Created new file with name: {file_name} for company_id: {company_id}")
@@ -159,7 +163,7 @@ async def create_file(
 
 
 @router.post("/create_By_directory",status_code=status.HTTP_201_CREATED)
-async def create_file_by_directory(db:DBSession, directory_path: str, company_id: str)->None:
+async def create_file_by_directory(db:DBSession, directory_path: str, company_id: str, product_id: str)->None:
     """
     This endpoint will take input of a direectory and will keep uploading all the files in it.
     """
@@ -178,7 +182,7 @@ async def create_file_by_directory(db:DBSession, directory_path: str, company_id
                 logger.warning(f"The file {file_name} already exists with hash {hashed}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f" The file already exists")
             else:
-                new_file= await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type)
+                new_file= await _creating_file_object(file_name, company_id, file_bytes, hashed, file_type, product_id)
                 db.add(new_file)
                 await db.commit()
                 logger.info(f"Created new file with name: {file_name} for company_id: {company_id}")
@@ -188,7 +192,7 @@ async def create_file_by_directory(db:DBSession, directory_path: str, company_id
         logger.error(f"Failure in uploading file by directory: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failure in uploading file by directory: {str(e)}")
 
-@router.get("/download/{company_id}", status_code=status.HTTP_200_OK)
+@router.get("/download/company/{company_id}", status_code=status.HTTP_200_OK)
 async def download_files_by_company(company_id: str, db:DBSession)->None:
     try:
         result= await db.execute(select(FileModel).filter_by(company_id=encode_uuid(company_id)))
@@ -208,7 +212,25 @@ async def download_files_by_company(company_id: str, db:DBSession)->None:
         logger.error(f"Error downloading files for company {company_id}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
 
-
+@router.get("/download/product/{product_id}", status_code=status.HTTP_200_OK)
+async def download_files_by_product(product_id: str, db:DBSession)->None:
+    try:
+        result= await db.execute(select(FileModel).filter_by(product_id=encode_uuid(product_id)))
+        files= result.scalars().all()
+        if not files:
+            logger.warning(f"No files found for product {product_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        # The files.file_data is in bytes format, so we need to convert it to bytes
+        for file in files:
+            # Save the file.file_data to download_dir
+            file_path= os.path.join("download_dir", file.file_name)
+            with open(file_path, "wb") as f:
+                f.write(file.file_data)
+            logger.info(f"File {file.file_name} downloaded to {file_path}")
+        return None
+    except Exception as e:
+        logger.error(f"Error downloading files for product {product_id}: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {str(e)}")
 
 @router.get("/ids", status_code=status.HTTP_200_OK, response_model=list[str])
 async def get_all_file_id_by_company(db:DBSession, company_id: str)->list[str]:

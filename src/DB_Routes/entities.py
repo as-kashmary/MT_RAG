@@ -33,8 +33,8 @@ class User(Base):
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
-    # email = Column(String(255), nullable=False, unique=True)
-    # password_hash = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
@@ -46,6 +46,8 @@ class Company(Base):
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
+    login_id = Column(String(255), nullable=False, unique=True)
+    passkey = Column(String(255), nullable=False, unique=False)
 
     def __repr__(self):
         return f"<Company(id='{decode_uuid(self.id)}', name='{self.name}')>"
@@ -56,12 +58,22 @@ class Admin(Base):
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
     username = Column(String(255), nullable=False, unique=True)
-    # password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=False)
     company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE" ), nullable=False)
 
     def __repr__(self):
         return f"<Admin(id='{decode_uuid(self.id)}', username='{self.username}', created_at='{self.created_at}')>"
 
+class Product(Base):
+    __tablename__ = 'product'
+
+    id = Column(BINARY(16), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)
+    description = Column(String(255), nullable=True)
+    company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE" ), nullable=False)
+
+    def __repr__(self):
+        return f"<Product(id='{decode_uuid(self.id)}', name='{self.name}', company_id='{decode_uuid(self.company_id)}')>"
 
 class File(Base):
     __tablename__ = 'file'
@@ -74,6 +86,7 @@ class File(Base):
     file_format = Column(String(255), nullable=False)
     status = Column(String(255), nullable=False, default="pending")
     uploaded_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    product_id = Column(BINARY(16), ForeignKey('product.id', ondelete="CASCADE" ), nullable=False)
 
     def __repr__(self):
         return (
