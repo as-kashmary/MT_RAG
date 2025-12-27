@@ -27,6 +27,10 @@ class LocalEmbeddings:
     def embed_documents(self, texts):
         self._load_model()
         return self.model.embed_documents(texts)
+    
+    def embed_text(self, text):
+        self._load_model()
+        return self.model.embed_text(text)
 
     def embed_query(self, text):
         self._load_model()

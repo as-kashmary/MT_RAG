@@ -24,8 +24,8 @@ client = MongoClient(
     # tlsAllowInvalidCertificates=False,
     # tlsCAFile=certifi.where()
 )
-database= client['Dotlines']
-collection= database['BM25_index']
+database= client['retrieval_DB']
+collection= database['old_implementation']
 # Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
