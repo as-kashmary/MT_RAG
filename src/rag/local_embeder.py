@@ -13,6 +13,10 @@
     
 
 from langchain_huggingface import HuggingFaceEmbeddings
+from src.logging.logging import get_logger
+
+logger = get_logger("local_embeder")
+
 
 class LocalEmbeddings:
     def __init__(self, model_name):
@@ -21,7 +25,7 @@ class LocalEmbeddings:
 
     def _load_model(self):
         if self.model is None:
-            print("[LocalEmbeddings] Loading model:", self.model_name)
+            logger.info(f"[LocalEmbeddings] Loading model: {self.model_name}")
             self.model = HuggingFaceEmbeddings(model_name=self.model_name)
 
     def embed_documents(self, texts):

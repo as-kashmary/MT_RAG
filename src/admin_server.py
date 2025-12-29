@@ -20,7 +20,7 @@ from src.rag.semantic_chunker import SemanticChunking
 from contextlib import asynccontextmanager
 
 from src.rag.local_embeder import LocalEmbeddings
-from src.DB_Routes.mongodb_implementation_copy import (
+from DB_Routes.mongodb_implementation import (
     store_bm25_index_and_chunks_in_mongodb_for_specific_product, 
     retrieve_bm25_index_and_chunks_using_company, 
     update_bm25_index_and_chunks_in_mongodb, 

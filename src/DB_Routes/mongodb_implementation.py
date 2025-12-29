@@ -25,7 +25,7 @@ client = MongoClient(
     # tlsCAFile=certifi.where()
 )
 database= client['retrieval_DB']
-collection= database['old_implementation']
+collection= database['Chunks']
 # Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
@@ -34,14 +34,33 @@ except Exception as e:
     logger.error(f"Error connecting to MongoDB: {str(e)}")
 
 
-def store_bm25_index_and_chunks_in_mongodb(bm25_index_variables, chunks, namespace):
+def store_bm25_index_and_chunks_in_mongodb_for_specific_product(bm25_index_variables, chunks, company_id, product_id, chunk_length):
     try:
+        """
+        if the chunks and bm25_index_variables is for the whole company then product_id is "X"
+        else it is for a specific product
+        """
+        """
+        here chunks will be:
+        {
+            "file_name": item['file_name'],
+            "chunks": [
+                [
+                    "index": i,
+                    "chunk": chunk_text
+                ],
+                ...
+            ]
+        }
+        """
+
         bm25_data = {
             'timestamp':  datetime.datetime.now(),
-            "namespace": namespace,
+            "company_id": company_id,
+            "product_id": product_id,
             "bm25_index_variables": bm25_index_variables,
-            "chunk_length": len(chunks),
-            "chunks": [(i, chunks[i]) for i in range(len(chunks))]
+            "chunk_length": chunk_length,
+            "chunks": chunks
         }
         collection.insert_one(bm25_data)
         logger.info("BM25 index and chunks stored in MongoDB.")
@@ -50,40 +69,61 @@ def store_bm25_index_and_chunks_in_mongodb(bm25_index_variables, chunks, namespa
 
 
 
-def retrieve_bm25_index_and_chunks_using_namespace(namespace):
+def retrieve_bm25_index_and_chunks_using_company(company_id):
     try:
-        data = collection.find_one({'namespace': namespace})
-        logger.info(f"Retrieved BM25 index and chunks for namespace {namespace}")
-        return data
+        """
+        collection.find returns a MongoDB Cursor, not a list. 
+        A cursor is lazy and iterable, but when you iterate over it multiple times, 
+        the cursor gets exhausted after the first iteration.
+        That's why in the calling function we have to convert it to a list.
+        """
+        data = list(collection.find({'company_id': company_id}))
+        logger.info(f"Retrieved BM25 index and chunks for company {company_id}")
+        return data if data else None
     except Exception as e:
         logger.error(f"Error retrieving BM25 index and chunks from MongoDB: {str(e)}")
         return None
         
 
-def retrieve_all():
+
+
+def retrieve_bm25_index_and_chunks_using_company_and_product(company_id, product_id):
     try:
-        return collection.find()
+        """
+        collection.find returns a MongoDB Cursor, not a list. 
+        A cursor is lazy and iterable, but when you iterate over it multiple times, 
+        the cursor gets exhausted after the first iteration.
+        That's why in the calling function we have to convert it to a list.
+        """
+        data = list(collection.find({'company_id': company_id, 'product_id': product_id}))
+        logger.info(f"Retrieved BM25 index and chunks for company {company_id} and product {product_id}")
+        return data if data else None
     except Exception as e:
-        print(e)
+        logger.error(f"Error retrieving BM25 index and chunks from MongoDB: {str(e)}")
+        return None
 
 
-
-def update_bm25_index_and_chunks_in_mongodb(bm25_index_variables, new_chunks, namespace):
+def update_bm25_index_and_chunks_in_mongodb(bm25_index_variables, new_chunks, company_id, product_id, chunk_length):
     try:
-        data =retrieve_bm25_index_and_chunks_using_namespace(namespace)
-        old_chunks=[]
-        old_chunk_length=0
-        if data is not None:
-            old_chunks = data['chunks']
-            old_chunk_length = data['chunk_length']
-        new_chunks=old_chunks+new_chunks
+        # data =retrieve_bm25_index_and_chunks_using_company_and_product(company_id, product_id)
+        """
+        here chunks will be:
+        {
+            
+            "file_name": item['file_name'],
+            "chunks": item['chunks']
+        }
+        """
+
         update_data = {
             'timestamp':  datetime.datetime.now(),
+            "company_id": company_id,
+            "product_id": product_id,
             "bm25_index_variables": bm25_index_variables,
-            'chunk_length': len(new_chunks),
-            "chunks": [(i+old_chunk_length, new_chunks[i]) for i in range(len(new_chunks))]
+            "chunk_length": chunk_length,
+            "chunks": new_chunks
         }
-        collection.update_one({'namespace': namespace}, {'$set': update_data})
+        collection.update_one({'company_id': company_id, 'product_id': product_id}, {'$set': update_data})
         logger.info("BM25 index and chunks updated in MongoDB.")
     except Exception as e:
         logger.error(f"Error updating BM25 index and chunks in MongoDB: {str(e)}")

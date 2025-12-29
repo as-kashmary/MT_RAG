@@ -66,13 +66,13 @@ async def query_pinecone(stats, index, query: str,namespace:str ,embedding_model
             include_values=False
         )
         retrieved_chunks=[]
-        logger.info(f"Pinecone query results: {results}")
         # Sort the results[matches] according to i['id']. Sort will be done considering the 'id' as integer
         results['matches'].sort(key=lambda x: int(x['id']))
+        logger.info(f"Pinecone query results: {results}")
         
 
         for i in results['matches']:
-            retrieved_chunks.append((i['metadata']['text'], i['score']))
+            retrieved_chunks.append((i['metadata']['chunk'], i['score']))
         logger.info(f"Queried Pinecone in namespace '{namespace}' with query '{query}'. Retrieved {len(retrieved_chunks)} chunks.")
         return retrieved_chunks
     except Exception as e:

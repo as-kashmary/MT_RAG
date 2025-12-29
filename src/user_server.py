@@ -9,7 +9,7 @@ from src.rag.fusion_retrieval import fusion_retrieval, create_bm25_index_v2
 from src.rag.response_generation import ResponseGenerator
 from src.rag.local_embeder import LocalEmbeddings
 
-from src.DB_Routes.mongodb_implementation import retrieve_all
+from DB_Routes.mongodb_implementation import retrieve_bm25_index_and_chunks_using_company
 from pinecone import Pinecone
 
 from src.logging.logging import configure_logging, get_logger
@@ -23,9 +23,11 @@ configure_logging(level="INFO", service_name="user-server")
 class UserSession:
     def __init__(self):
         self.namespace = None
-        self.bm25_dict = {}
         self.length_of_total_chunks = None
         self.context = None
+        self.product_based_bm25_dict = {}
+        self.company_id = None
+        self.query = None
         
 
 sessions = {}
@@ -77,17 +79,32 @@ logger = get_logger("user_server")
 
 
 @app.get("/retrieve_bm25_index_and_chunks")
-async def retrieve_bm25_index_and_chunks(namespace:str ="dotlines",
-                                         user_session: UserSession = Depends(get_user_session)):
+async def retrieve_bm25_index_and_chunks(user_id: str,
+                                        company_id: str,
+                                        user_session: UserSession = Depends(get_user_session)):
     try:
-        retrieved_data= retrieve_all()
-        logger.info(f"Retrieved data: {retrieved_data}")
-        for data in retrieved_data:
-            bm25=create_bm25_index_v2(data['bm25_index_variables'])
-            user_session.bm25_dict[data['namespace']]={
-                "bm25_object": bm25,
-                "chunk_length": data["chunk_length"],
-                "chunks": data["chunks"]}
+        user_session.company_id= company_id
+        retrieved_data= retrieve_bm25_index_and_chunks_using_company(company_id)
+        # logger.info(f"Retrieved data: {retrieved_data}")
+        if retrieved_data is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No BM25 index and chunks found for the given company_id. The mongodb collection might be empty.")
+        else:
+            logger.info(f"BM25 index and chunks retrieved successfully for company_id: {company_id}")
+            for data in retrieved_data:
+                product_id=data['product_id']
+                bm25=create_bm25_index_v2(data['bm25_index_variables'])
+                chunk_tuples=[]
+                for item in data['chunks']:
+                    for item2 in item['chunks']:
+                        chunk_tuples.append(item2)
+                        
+                user_session.product_based_bm25_dict[product_id]={
+                    "bm25_object": bm25,
+                    "chunk_length": data["chunk_length"],
+                    "chunks": chunk_tuples}
+        logger.info(f"BM25 indexes and chunks stored in user session for user_id: {user_id}")
+        # return  user_session.product_based_bm25_dict
+        return chunk_tuples
 
     except Exception as e:
         logger.error(f"retrieve_bm25_index_and_chunks endpoint failed: {str(e)}")
@@ -96,22 +113,63 @@ async def retrieve_bm25_index_and_chunks(namespace:str ="dotlines",
 
 
 @app.get("/context_generation", response_class=JSONResponse)
-async def context_generation(query:str ="How can I solve my echo's noise problem?",
-                             namespace:str ="dotlines",
-                             user_session: UserSession = Depends(get_user_session)):
+async def context_generation(product_id:str,
+                            query:str ="How can I solve my echo's noise problem?",
+                            user_session: UserSession = Depends(get_user_session)):
 
     try:
-        user_session.length_of_total_chunks=user_session.bm25_dict[namespace]["chunk_length"]
+        user_session.query=query
+        namespace= f"{user_session.company_id}_{product_id}"
+        if product_id not in user_session.product_based_bm25_dict:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"BM25 index and chunks for product_id: {product_id} not found in user session. Please retrieve it first using /retrieve_bm25_index_and_chunks endpoint.")
+        
+        bm25=user_session.product_based_bm25_dict[product_id]["bm25_object"]
+        chunk_length=user_session.product_based_bm25_dict[product_id]["chunk_length"]
+        chunks=user_session.product_based_bm25_dict[product_id]["chunks"]
         result_indexes=await fusion_retrieval(
             stats=stats, 
             Pinecone_index=Pinecone_index, 
-            length_of_total_chunks=user_session.length_of_total_chunks, 
+            length_of_total_chunks=chunk_length, 
             embedding_model=embedding_model, 
-            bm25=user_session.bm25_dict[namespace]["bm25_object"], 
+            bm25=bm25, 
             query=query, 
             namespace=namespace)
-        results= [user_session.bm25_dict[namespace]["chunks"][i][1] for i in result_indexes]
-        user_session.context=results[0]+results[1]+results[2]
+        
+        """
+        fusion retrieval returns the indexes starting from 0 to len(chunks)-1
+        but our chunks are stored in mongodb with index starting from 1 to len(chunks)
+        So we need to add 1 to each index before retrieving the chunks.
+        """
+    
+        result_indexes=[int(i)+1 for i in result_indexes]
+        logger.info(f"Result indexes from fusion retrieval: {result_indexes}")
+        logger.info(f"Chunks structure (first item): {chunks[0] if chunks else 'Empty chunks'}")
+        logger.info(f"Total chunks available: {len(chunks)}")
+        logger.info(f"{chunks}")
+        
+        """
+        Now let's sort the chunks according to the result_indexes order.
+        As throughout the retrieval the order may be changed.
+        """
+        sorted_chunks=[]
+        for idx in result_indexes:
+            for chunk_tuple in chunks:
+                if chunk_tuple[0]==idx:
+                    sorted_chunks.append(chunk_tuple[1])
+                    break
+        user_session.context=sorted_chunks[0]+sorted_chunks[1]+sorted_chunks[2]
+        
+        
+        
+        
+        
+        
+        
+        
+        # user_session.length_of_total_chunks=user_session.bm25_dict[namespace]["chunk_length"]
+        
+        # results= [user_session.bm25_dict[namespace]["chunks"][i][1] for i in result_indexes]
+        # user_session.context=results[0]+results[1]+results[2]
         logger.info(f"Context generated successfully for query: {query}")
         return {"context": user_session.context}
     except Exception as e:
@@ -120,14 +178,13 @@ async def context_generation(query:str ="How can I solve my echo's noise problem
 
 
 @app.get("/response_generation", response_class=JSONResponse)
-async def response_generation(query:str ="How can I solve my echo's noise problem?",
-                              namespace:str ="dotlines",
+async def response_generation(user_id: str,
                               user_session: UserSession = Depends(get_user_session)):
     try:
         context= user_session.context
-        generator = ResponseGenerator(query, context)
+        generator = ResponseGenerator(user_session.query, context)
         response = generator.generation()
-        logger.info(f"Response generated successfully for query: {query}")
+        logger.info(f"Response generated successfully for query: {user_session.query}")
         return JSONResponse(content=response)
     except Exception as e:
         logger.error(f"Response generation failed: {str(e)}")

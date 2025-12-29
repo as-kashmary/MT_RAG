@@ -3,6 +3,9 @@
 import math
 import numpy as np
 from multiprocessing import Pool, cpu_count
+from src.logging.logging import get_logger
+
+logger = get_logger("rank_bm25")
 
 """
 All of these algorithms have been taken from the paper:
@@ -274,7 +277,7 @@ class BM25Okapi_without_corpus(BM25):
         self.doc_len = doc_len
         self.tokenizer = tokenizer
         self.average_idf = average_idf
-        print(f"doc_len length: {len(self.doc_len)} type: {type(self.doc_len)} and doc_len: {self.doc_len}")
+        logger.info(f"doc_len length: {len(self.doc_len)} type: {type(self.doc_len)} and doc_len: {self.doc_len}")
 
 
     def _calc_idf(self, nd):

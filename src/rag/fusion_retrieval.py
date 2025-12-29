@@ -147,6 +147,7 @@ async def fusion_retrieval(stats, Pinecone_index, length_of_total_chunks, embedd
     sorted_indices = np.argsort(combined_scores)[::-1]
     
     # Step 7: Return top k documents 
-    # sorted_indices       
+    # sorted_indices    
+    # The sorted indices starts from 0 to len(all_docs)-1   
     return [int(i) for i in sorted_indices[:k]]
     # return [all_docs[i] for i in sorted_indices[:k]]
