@@ -51,7 +51,14 @@ class AdminSession:
 
 sessions = {}
 
-def get_admin_session(admin_id: str):
+def get_admin_session(admin_id: str = None):
+    """
+    Get or create an AdminSession for a given admin_id.
+    If admin_id is not provided, a ValueError is raised to prevent session confusion.
+    """
+    if admin_id is None:
+        raise ValueError("admin_id is required as a query parameter")
+    
     if admin_id not in sessions:
         sessions[admin_id] = AdminSession()
     return sessions[admin_id]
@@ -100,7 +107,8 @@ logger = get_logger("admin_server")
 
 
 @app.post("/parser",response_class=JSONResponse)
-async def parser(product_id: str,
+async def parser(admin_id: str,
+                 product_id: str,
                  company_id: str,
                  document_path: str,
                  admin_session: AdminSession = Depends(get_admin_session))-> JSONResponse:
@@ -174,7 +182,7 @@ async def parser(product_id: str,
 
 
 @app.post("/chunk")
-async def chunk(
+async def chunk(admin_id: str,
                 company_id: str="abcd",
                 admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
@@ -454,7 +462,7 @@ async def chunk(
     
 
 @app.get("/vectorizing")
-async def vectorizing(
+async def vectorizing(admin_id: str,
                     admin_session: AdminSession = Depends(get_admin_session)):
     """
     28/11/2025
@@ -496,7 +504,8 @@ async def vectorizing(
 
 
 @app.post("/store")
-async def store(admin_session: AdminSession = Depends(get_admin_session)):
+async def store(admin_id: str,
+                admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
     try:
         """
@@ -541,19 +550,22 @@ async def store(admin_session: AdminSession = Depends(get_admin_session)):
             ids=[]
             metadata_list=[]
             product_namespace= f"{admin_session.company_id}_{product_id}"
+            k=1
             for entry in vector_formatted:
                 if entry["product_id"]==product_id:
                     for vector_data in entry["vectors_with_filename"]:
                         if product_id=="X":
                             logger.info(f"Storing vectors for company-wide 'X' namespace for company {admin_session.company_id} using filename {vector_data['file_name']}.")
                         vectors.extend( vector_data["vectors"])
-                        ids.extend( [str(i+product_data["old_chunk_length"]) for i in range(len(vector_data["vectors"]))])
+                        ids.extend( [str(i+product_data["old_chunk_length"]+k) for i in range(len(vector_data["vectors"]))])
+                        k+= len(vector_data["vectors"])
                         metadata_list.extend( [{
                             "file_name": vector_data["file_name"], 
                             "product_id": product_id, 
                             "company_id": admin_session.company_id
                             } for _ in range(len(vector_data["vectors"]))])
                     break
+            logger.info(f"here's the ids for product{product_id}:{ids}")
 
 
             # for vector_data in admin_session.vectors:
@@ -579,12 +591,17 @@ async def store(admin_session: AdminSession = Depends(get_admin_session)):
                 sent_chunks=[]
                 i=product_data["old_chunk_length"]
                 chunk_length=product_data["chunk_length"]
+                chunk_with_index= []
+                for chunk in product_data["chunks"]:
+                    for text in chunk['chunks']:
+                        i+=1
+                        chunk_with_index.append((i, text))
+
                 for item in product_data["chunks"]:
                     i+=1
                     sent_chunks.append({
-                        "index": i,
                         "file_name": item['file_name'],
-                        "chunks": item['chunks']
+                        "chunks": chunk_with_index
                     })
                 final_chunks= sent_chunks
                 final_chunk_length= product_data["old_chunk_length"] + chunk_length
@@ -602,12 +619,18 @@ async def store(admin_session: AdminSession = Depends(get_admin_session)):
                 sent_chunks=[]
                 i=0
                 chunk_length=product_data["chunk_length"]
+                chunk_with_index= []
+                for chunk in product_data["chunks"]:
+                    for text in chunk['chunks']:
+                        i+=1
+                        chunk_with_index.append((i, text))
+
+
                 for item in product_data["chunks"]:
                     i+=1
                     sent_chunks.append({
-                        "index": i,
                         "file_name": item['file_name'],
-                        "chunks": item['chunks']
+                        "chunks": chunk_with_index
                     })
                 store_bm25_index_and_chunks_in_mongodb_for_specific_product(
                     bm25_index_variables=product_data["variables"],

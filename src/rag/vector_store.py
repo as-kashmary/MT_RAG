@@ -66,6 +66,7 @@ async def query_pinecone(stats, index, query: str,namespace:str ,embedding_model
             include_values=False
         )
         retrieved_chunks=[]
+        logger.info(f"Pinecone query results: {results}")
         # Sort the results[matches] according to i['id']. Sort will be done considering the 'id' as integer
         results['matches'].sort(key=lambda x: int(x['id']))
         

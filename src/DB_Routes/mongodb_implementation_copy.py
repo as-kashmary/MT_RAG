@@ -25,7 +25,7 @@ client = MongoClient(
     # tlsCAFile=certifi.where()
 )
 database= client['retrieval_DB']
-collection= database['BM25_index']
+collection= database['Chunks']
 # Send a ping to confirm a successful connection
 try:
     client.admin.command('ping')
@@ -40,7 +40,19 @@ def store_bm25_index_and_chunks_in_mongodb_for_specific_product(bm25_index_varia
         if the chunks and bm25_index_variables is for the whole company then product_id is "X"
         else it is for a specific product
         """
-    
+        """
+        here chunks will be:
+        {
+            "file_name": item['file_name'],
+            "chunks": [
+                [
+                    "index": i,
+                    "chunk": chunk_text
+                ],
+                ...
+            ]
+        }
+        """
 
         bm25_data = {
             'timestamp':  datetime.datetime.now(),
@@ -59,6 +71,12 @@ def store_bm25_index_and_chunks_in_mongodb_for_specific_product(bm25_index_varia
 
 def retrieve_bm25_index_and_chunks_using_company(company_id):
     try:
+        """
+        collection.find returns a MongoDB Cursor, not a list. 
+        A cursor is lazy and iterable, but when you iterate over it multiple times, 
+        the cursor gets exhausted after the first iteration.
+        That's why in the calling function we have to convert it to a list.
+        """
         data = list(collection.find({'company_id': company_id}))
         logger.info(f"Retrieved BM25 index and chunks for company {company_id}")
         return data if data else None
@@ -69,12 +87,19 @@ def retrieve_bm25_index_and_chunks_using_company(company_id):
 
 def retrieve_all():
     try:
-        return collection.find()
+        data=collection.find()
+        return list(data) if list(data) else None
     except Exception as e:
         print(e)
 
 def retrieve_bm25_index_and_chunks_using_company_and_product(company_id, product_id):
     try:
+        """
+        collection.find returns a MongoDB Cursor, not a list. 
+        A cursor is lazy and iterable, but when you iterate over it multiple times, 
+        the cursor gets exhausted after the first iteration.
+        That's why in the calling function we have to convert it to a list.
+        """
         data = list(collection.find({'company_id': company_id, 'product_id': product_id}))
         logger.info(f"Retrieved BM25 index and chunks for company {company_id} and product {product_id}")
         return data if data else None
@@ -86,6 +111,15 @@ def retrieve_bm25_index_and_chunks_using_company_and_product(company_id, product
 def update_bm25_index_and_chunks_in_mongodb(bm25_index_variables, new_chunks, company_id, product_id, chunk_length):
     try:
         # data =retrieve_bm25_index_and_chunks_using_company_and_product(company_id, product_id)
+        """
+        here chunks will be:
+        {
+            
+            "file_name": item['file_name'],
+            "chunks": item['chunks']
+        }
+        """
+
         update_data = {
             'timestamp':  datetime.datetime.now(),
             "company_id": company_id,
