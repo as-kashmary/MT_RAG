@@ -158,18 +158,7 @@ async def context_generation(product_id:str,
                     sorted_chunks.append(chunk_tuple[1])
                     break
         user_session.context=sorted_chunks[0]+sorted_chunks[1]+sorted_chunks[2]
-        
-        
-        
-        
-        
-        
-        
-        
-        # user_session.length_of_total_chunks=user_session.bm25_dict[namespace]["chunk_length"]
-        
-        # results= [user_session.bm25_dict[namespace]["chunks"][i][1] for i in result_indexes]
-        # user_session.context=results[0]+results[1]+results[2]
+
         logger.info(f"Context generated successfully for query: {query}")
         return {"context": user_session.context}
     except Exception as e:

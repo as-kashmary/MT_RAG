@@ -9,6 +9,11 @@ env/
 ENV/
 .venv
 
+models/
+src/__pycache__/
+src/DB_Routes/__pycache__/
+
+
 # Git
 .git/
 .gitignore
