@@ -3,15 +3,16 @@ import json
 import uvicorn
 import sys
 import os
+from dotenv import load_dotenv
+
 from fastapi import FastAPI, Request, status, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 import argparse
 
 from pinecone import Pinecone
 
-# PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-# sys.path.insert(0, PROJECT_ROOT)
 
 from src.rag.document_loader import read_txt_to_string, read_pdf_to_string, read_docx_to_string
 from src.rag.vector_store import sending_to_pinecone, retrieve_namespace, query_pinecone, retrieve_length_of_namespace
@@ -20,7 +21,7 @@ from src.rag.semantic_chunker import SemanticChunking
 from contextlib import asynccontextmanager
 
 from src.rag.local_embeder import LocalEmbeddings
-from DB_Routes.mongodb_implementation import (
+from src.DB_Routes.mongodb_implementation import (
     store_bm25_index_and_chunks_in_mongodb_for_specific_product, 
     retrieve_bm25_index_and_chunks_using_company, 
     update_bm25_index_and_chunks_in_mongodb, 
@@ -30,22 +31,15 @@ from src.logging.logging import configure_logging, get_logger
 from src.logging.request_id import RequestIDMiddleware
 
 configure_logging(level="INFO", service_name="admin-server")
+logger = get_logger("admin_server")
+load_dotenv()
+
 
 class AdminSession:
     def __init__(self):
         self.chunks_list = []
         self.company_id = None
-        self.bm25 = None
-        # self.length_of_total_chunks = None
-        # Initialized to list so downstream code can append
-        self.vectors = []
         self.parsed_contents_list = []       
-        self.product_variable_list = []
-        self.all_variable_list = []
-        self.created_or_not = False
-        # self.namespace = None
-        self.retrieved_chunk_length = 0
-        self.retrieved_product_ids=[]
         self.chunk_length={}
         self.product_based_chunk_info={}
         self.product_based_vector_info={}
@@ -54,6 +48,50 @@ class AdminSession:
 
 
 sessions = {}
+
+security = HTTPBearer(auto_error=False)
+
+
+def _load_admin_tokens():
+    """Load admin API keys from env as JSON mapping admin_id -> {"token": str, "companies": [..]}"""
+    raw = os.getenv("ADMIN_API_KEYS_JSON")
+    if not raw:
+        logger.warning("ADMIN_API_KEYS_JSON not set; admin endpoints will reject requests until configured")
+        return {}
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError("ADMIN_API_KEYS_JSON must be a JSON object mapping admin ids to auth info")
+        logger.info(f"Loaded ADMIN_API_KEYS for admins: {list(data.keys())}")
+        return data
+    except Exception as exc:  # broad to surface parsing issues
+        logger.error(f"Failed to parse ADMIN_API_KEYS_JSON: {exc}")
+        return {}
+
+
+ADMIN_API_KEYS = _load_admin_tokens()
+
+
+def authorize_request(admin_id: str, company_id: str | None, credentials: HTTPAuthorizationCredentials | None):
+    if not ADMIN_API_KEYS:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Admin auth is not configured")
+
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization Bearer token")
+
+    admin_info = ADMIN_API_KEYS.get(admin_id)
+    if not admin_info:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unknown admin_id")
+
+    expected_token = admin_info.get("token")
+    if credentials.credentials != expected_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token for admin_id")
+
+    allowed_companies = admin_info.get("companies")
+    if company_id and allowed_companies and company_id not in allowed_companies:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin not permitted for this company")
+
+    return True
 
 def get_admin_session(admin_id: str = None):
     """
@@ -107,7 +145,6 @@ Added RequestIDMiddleware to log request ids in logs for tracing.
 """
 
 app.add_middleware(RequestIDMiddleware)
-logger = get_logger("admin_server")
 
 
 @app.post("/parser")
@@ -115,6 +152,7 @@ async def parser(admin_id: str,
                  product_id: str,
                  company_id: str,
                  document_path: str,
+                 credentials: HTTPAuthorizationCredentials = Depends(security),
                  admin_session: AdminSession = Depends(get_admin_session)):
     """
     Here, we parse different document types and return their contents as strings.
@@ -124,6 +162,7 @@ async def parser(admin_id: str,
     We have to implement multiprocessing here to speed up the parsing of multiple documents.
     """
     try:
+        authorize_request(admin_id, company_id, credentials)
         start_time=time.time()
         admin_session.company_id= company_id
 
@@ -172,9 +211,15 @@ async def parser(admin_id: str,
         })
     
         parsing_time = time.time() - start_time
+        logger.info(f"Parsing completed in {parsing_time:.2f} seconds.")
         logger.info(f"Parsed {filename} document from {document_path} in {parsing_time:.2f} seconds for product {product_id} and company {company_id}.")
         
-        return admin_session.parsed_contents_list
+        return {
+            "file_name": filename,
+            "product_id": product_id,
+            "company_id": company_id,
+            "time": parsing_time
+        }
 
     except Exception as e:
         logger.error(f"Parsing failed: {str(e)}")
@@ -184,6 +229,7 @@ async def parser(admin_id: str,
 @app.post("/chunk")
 async def chunk(admin_id: str,
                 company_id: str="abcd",
+                credentials: HTTPAuthorizationCredentials = Depends(security),
                 admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
     admin_session.chunks_list = []
@@ -218,6 +264,7 @@ async def chunk(admin_id: str,
     """
 
     try:
+        authorize_request(admin_id, company_id, credentials)
         """
         Now chunking the contents present in admin_session.chunks_list
         The chunks are presented in admin_session.chunks_list in this format:
@@ -302,7 +349,6 @@ async def chunk(admin_id: str,
         
 
         data = retrieve_bm25_index_and_chunks_using_company(admin_session.company_id)
-        admin_session.created_or_not= False
         if data is not None:
             for entry in data:
                 if entry['product_id'] not in admin_session.retrieved_product_data:
@@ -368,7 +414,11 @@ async def chunk(admin_id: str,
         If it required mongodb implementation then it can be done later.
         """
 
-        return admin_session.product_based_chunk_info
+        return {
+            "company_id": admin_session.company_id,
+            "chunk_lengths": admin_session.chunk_length,
+            "time": chunking_time
+        }
 
     
 
@@ -380,7 +430,8 @@ async def chunk(admin_id: str,
 
 @app.get("/vectorizing")
 async def vectorizing(admin_id: str,
-                    admin_session: AdminSession = Depends(get_admin_session)):
+                      credentials: HTTPAuthorizationCredentials = Depends(security),
+                      admin_session: AdminSession = Depends(get_admin_session)):
     """
     28/11/2025
     Chunks are stored in document_list global variable after chunking.
@@ -392,6 +443,7 @@ async def vectorizing(admin_id: str,
     # global vectors
 
     try:
+        authorize_request(admin_id, admin_session.company_id, credentials)
         """
         For every product's file_name's chunks in product_variable_list, we will vectorize them and store them with proper filename metadata.
         """
@@ -450,6 +502,10 @@ async def vectorizing(admin_id: str,
         embedding_time = time.time() - start_time
         logger.info(f"Embedding Time: {embedding_time:.2f} seconds")
         # return admin_session.product_based_vector_info
+        return {
+            "company_id": admin_session.company_id,
+            "time": embedding_time
+        }
     except Exception as e:
         logger.error(f"Embedding failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Embedding failed:{str(e)}")
@@ -457,9 +513,11 @@ async def vectorizing(admin_id: str,
 
 @app.post("/store")
 async def store(admin_id: str,
+                credentials: HTTPAuthorizationCredentials = Depends(security),
                 admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
     try:
+        authorize_request(admin_id, admin_session.company_id, credentials)
         """
         mainly the data of mongodb will be collected from admin_session.product_based_chunk_info
         And for the data of pinecone, it will be collected from admin_session.product_based_vector_info
@@ -491,6 +549,10 @@ async def store(admin_id: str,
                 admin_session.product_based_vector_info[product_id]["namespace"]
             )
         logger.info(f"Storing completed for company {admin_session.company_id} in {time.time() - start_time:.2f} seconds.")
+        return {
+            "company_id": admin_session.company_id,
+            "time": time.time() - start_time
+        }
 
 
     except Exception as e:
