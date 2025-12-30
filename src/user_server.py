@@ -9,7 +9,7 @@ from src.rag.fusion_retrieval import fusion_retrieval, create_bm25_index_v2
 from src.rag.response_generation import ResponseGenerator
 from src.rag.local_embeder import LocalEmbeddings
 
-from DB_Routes.mongodb_implementation import retrieve_bm25_index_and_chunks_using_company
+from src.DB_Routes.mongodb_implementation import retrieve_bm25_index_and_chunks_using_company
 from pinecone import Pinecone
 
 from src.logging.logging import configure_logging, get_logger
