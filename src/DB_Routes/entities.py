@@ -41,14 +41,20 @@ class User(Base):
         return f"<User(id='{decode_uuid(self.id)}', name='{self.name}', created_at='{self.created_at}')>"
 
 
+def generate_login_id() -> str:
+    """Generate a unique login_id for a company based on UUID."""
+    return str(uuid4())[:32]  # Use first 32 chars of UUID as login_id
+
+
 class Company(Base):
     __tablename__ = 'company'
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
+    login_id = Column(String(255), nullable=False, unique=True, default=generate_login_id)
 
     def __repr__(self):
-        return f"<Company(id='{decode_uuid(self.id)}', name='{self.name}')>"
+        return f"<Company(id='{decode_uuid(self.id)}', name='{self.name}', login_id='{self.login_id}')>"
     
 
 class Admin(Base):
@@ -56,11 +62,11 @@ class Admin(Base):
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
     username = Column(String(255), nullable=False, unique=True)
-    # password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE" ), nullable=False)
 
     def __repr__(self):
-        return f"<Admin(id='{decode_uuid(self.id)}', username='{self.username}', created_at='{self.created_at}')>"
+        return f"<Admin(id='{decode_uuid(self.id)}', username='{self.username}')>"
 
 
 class File(Base):
@@ -95,4 +101,26 @@ class QueryAndAnswer(Base):
         return (
             f"<QueryAndAnswer(id='{decode_uuid(self.id)}', query='{self.query}', "
             f"response='{self.response}', user_id='{decode_uuid(self.user_id)}')>"
+        )
+
+
+class Executive(Base):
+    """
+    Executive (CTO/CEO) entity - owns a company and can manage admins.
+    Used for the Executive Portal authentication and authorization.
+    """
+    __tablename__ = 'executive'
+
+    id = Column(BINARY(16), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE"), nullable=False)
+    industry = Column(String(255), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return (
+            f"<Executive(id='{decode_uuid(self.id)}', name='{self.name}', "
+            f"email='{self.email}', company_id='{decode_uuid(self.company_id)}'>"
         )

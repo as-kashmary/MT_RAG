@@ -133,3 +133,9 @@ pytest==8.3.4
 pytest-asyncio==0.24.0
 pytest-cov==6.0.0
 aiosqlite==0.21.0
+
+# Executive Portal Auth dependencies
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+argon2-cffi==23.1.0
+email-validator==2.1.0

@@ -4,6 +4,7 @@ import uvicorn
 import sys
 import os
 from fastapi import FastAPI, Request, status, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 import argparse
@@ -28,6 +29,10 @@ from src.DB_Routes.mongodb_implementation import (
 
 from src.logging.logging import configure_logging, get_logger
 from src.logging.request_id import RequestIDMiddleware
+
+# Import Executive Portal routes
+from src.DB_Routes.Executive_routes import router as executive_router
+from src.DB_Routes.Analytics_routes import router as analytics_router
 
 configure_logging(level="INFO", service_name="admin-server")
 
@@ -85,6 +90,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+# CORS middleware for Executive Portal frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 """
 Added RequestIDMiddleware to log request ids in logs for tracing.
 
@@ -92,6 +107,10 @@ Added RequestIDMiddleware to log request ids in logs for tracing.
 
 app.add_middleware(RequestIDMiddleware)
 logger = get_logger("admin_server")
+
+# Include Executive Portal routers
+app.include_router(executive_router)
+app.include_router(analytics_router)
 
 
 @app.post("/parser")
