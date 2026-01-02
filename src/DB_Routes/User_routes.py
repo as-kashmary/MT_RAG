@@ -2,19 +2,25 @@ from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime, timezone
 from fastapi import status, APIRouter, HTTPException
-from .entities import User, decode_uuid
+from .entities import User, decode_uuid, encode_uuid
 from .db_connection_new import DBSession
 from sqlalchemy.ext.asyncio import  AsyncSession
 from sqlalchemy import select
+import os
+
 
 from src.logging.logging import get_logger 
 logger= get_logger("user_routes")
+
+# Set default company ID (from environment variable or hardcoded for single-company setup)
+DEFAULT_COMPANY_ID = os.getenv("DEFAULT_COMPANY_ID", "1893ab51e6284c1b8ed64c88238b116b")
 
 
 class UserCreate(BaseModel):
     name: str
     email: str
     password_hash: str
+    
 
 
 
@@ -68,15 +74,20 @@ async def _user_email_password_hash_match(db:AsyncSession, email:str, password_h
 
 
 @router.post("/create", status_code=status.HTTP_201_CREATED)
-async def create_user(db:DBSession, user:UserCreate)->None:
+async def create_user(db:DBSession, user:UserCreate)->dict:
     try:
         new_user=User(
-            **user.model_dump()
+            **user.model_dump(),
+            Company_id=encode_uuid(DEFAULT_COMPANY_ID)  # Automatically set default company_id
         ) 
         db.add(new_user)
         await db.commit()
-        logger.info(f"Created new user with email: {user.email}")
-        return None
+        logger.info(f"Created new user with email: {user.email} and company_id: {DEFAULT_COMPANY_ID}")
+        return {
+            "success": True,
+            "message": "User created successfully",
+            "email": user.email
+        }
     except Exception as e:
         logger.error(f"Error creating user with email {user.email}: {str(e)}")
         raise HTTPException(status_code= status.HTTP_400_BAD_REQUEST, detail=f"Failure in creating user {str(e)}")

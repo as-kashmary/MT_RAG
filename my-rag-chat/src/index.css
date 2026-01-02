@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html {
+    color-scheme: light;
+  }
+}
+
+
+/* Optional: Custom scrollbar styling used in the app */
+/* @layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #e4e4e7;
+    border-radius: 20px;
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #27272a;
+  }
+} */

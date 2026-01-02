@@ -35,8 +35,9 @@ class User(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    Company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE" ), nullable=False)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-
+    
     def __repr__(self):
         return f"<User(id='{decode_uuid(self.id)}', name='{self.name}', created_at='{self.created_at}')>"
 

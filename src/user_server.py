@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Request, status, HTTPException, Depends
 from pathlib import Path
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import time
+import os
 from contextlib import asynccontextmanager
 
 from src.rag.fusion_retrieval import fusion_retrieval, create_bm25_index_v2
@@ -10,12 +12,16 @@ from src.rag.response_generation import ResponseGenerator
 from src.rag.local_embeder import LocalEmbeddings
 
 from src.DB_Routes.mongodb_implementation import retrieve_bm25_index_and_chunks_using_company
+from src.DB_Routes.User_routes import router as user_router
 from pinecone import Pinecone
 
 from src.logging.logging import configure_logging, get_logger
 from src.logging.request_id import RequestIDMiddleware
 
 configure_logging(level="INFO", service_name="user-server")
+
+# Set default company ID (from environment variable or hardcoded for single-company setup)
+DEFAULT_COMPANY_ID = os.getenv("DEFAULT_COMPANY_ID", "1893ab51e6284c1b8ed64c88238b116b")
 
 
 
@@ -67,6 +73,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server default port
+        "http://localhost:3000",  # Common dev port
+        "http://localhost:8080",  # Another common port
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 """
 Added RequestIDMiddleware to log request ids in logs for tracing.
@@ -74,16 +95,20 @@ Added RequestIDMiddleware to log request ids in logs for tracing.
 """
 
 app.add_middleware(RequestIDMiddleware)
+
+# Include User routes
+app.include_router(user_router)
+
 logger = get_logger("user_server")
 
 
 
 @app.get("/retrieve_bm25_index_and_chunks")
 async def retrieve_bm25_index_and_chunks(user_id: str,
-                                        company_id: str,
                                         user_session: UserSession = Depends(get_user_session)):
     try:
-        user_session.company_id= company_id
+        company_id = DEFAULT_COMPANY_ID  # Use default company_id
+        user_session.company_id = company_id
         retrieved_data= retrieve_bm25_index_and_chunks_using_company(company_id)
         # logger.info(f"Retrieved data: {retrieved_data}")
         if retrieved_data is None:
