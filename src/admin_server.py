@@ -35,6 +35,12 @@ logger = get_logger("admin_server")
 load_dotenv()
 
 
+### <<------------------------------ NB: ALERT----------------------------->>
+
+### all the authentication for admin routes is commented out and deleted for testing purpose ,  please those who will use this code in future reinstate the authentication part properly.
+
+
+
 class AdminSession:
     def __init__(self):
         self.chunks_list = []
@@ -152,7 +158,6 @@ async def parser(admin_id: str,
                  product_id: str,
                  company_id: str,
                  document_path: str,
-                 credentials: HTTPAuthorizationCredentials = Depends(security),
                  admin_session: AdminSession = Depends(get_admin_session)):
     """
     Here, we parse different document types and return their contents as strings.
@@ -162,7 +167,7 @@ async def parser(admin_id: str,
     We have to implement multiprocessing here to speed up the parsing of multiple documents.
     """
     try:
-        authorize_request(admin_id, company_id, credentials)
+        #authorize_request(admin_id, company_id, credentials)
         start_time=time.time()
         admin_session.company_id= company_id
 
@@ -228,7 +233,7 @@ async def parser(admin_id: str,
 
 @app.post("/chunk")
 async def chunk(admin_id: str,
-                company_id: str="abcd",
+                company_id: str="1893ab51e6284c1b8ed64c88238b116b",
                 credentials: HTTPAuthorizationCredentials = Depends(security),
                 admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
@@ -264,7 +269,7 @@ async def chunk(admin_id: str,
     """
 
     try:
-        authorize_request(admin_id, company_id, credentials)
+        #authorize_request(admin_id, company_id, credentials)
         """
         Now chunking the contents present in admin_session.chunks_list
         The chunks are presented in admin_session.chunks_list in this format:
@@ -429,8 +434,8 @@ async def chunk(admin_id: str,
     
 
 @app.get("/vectorizing")
-async def vectorizing(admin_id: str,
-                      credentials: HTTPAuthorizationCredentials = Depends(security),
+async def vectorizing(
+                      admin_id: str,
                       admin_session: AdminSession = Depends(get_admin_session)):
     """
     28/11/2025
@@ -443,7 +448,7 @@ async def vectorizing(admin_id: str,
     # global vectors
 
     try:
-        authorize_request(admin_id, admin_session.company_id, credentials)
+        #authorize_request(admin_id, admin_session.company_id, credentials)
         """
         For every product's file_name's chunks in product_variable_list, we will vectorize them and store them with proper filename metadata.
         """
@@ -513,11 +518,10 @@ async def vectorizing(admin_id: str,
 
 @app.post("/store")
 async def store(admin_id: str,
-                credentials: HTTPAuthorizationCredentials = Depends(security),
                 admin_session: AdminSession = Depends(get_admin_session)):
     start_time=time.time()
     try:
-        authorize_request(admin_id, admin_session.company_id, credentials)
+        #authorize_request(admin_id, admin_session.company_id, credentials)
         """
         mainly the data of mongodb will be collected from admin_session.product_based_chunk_info
         And for the data of pinecone, it will be collected from admin_session.product_based_vector_info
