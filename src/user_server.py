@@ -214,7 +214,6 @@
 
 
 
-
 from fastapi import FastAPI, Request, status, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
@@ -223,45 +222,47 @@ import uvicorn
 import time
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 # --- IMPORTS ---
 from src.rag.fusion_retrieval import fusion_retrieval, create_bm25_index_v2
 from src.rag.response_generation import ResponseGenerator
 from src.rag.local_embeder import LocalEmbeddings
 from src.DB_Routes.mongodb_implementation import retrieve_bm25_index_and_chunks_using_company
+from src.DB_Routes.db_connection_new import DBSession
+from src.DB_Routes.entities import ChatMessage, ChatSession, encode_uuid, decode_uuid
 
 # IMPORT ROUTES
 from src.DB_Routes.User_routes import router as user_router
-from src.DB_Routes.product_routes import router as product_routes 
+from src.DB_Routes.product_routes import router as product_router 
+from src.DB_Routes.chat_routes import router as history_router # NEW
 
 from pinecone import Pinecone
 from src.logging.logging import configure_logging, get_logger
 from src.logging.request_id import RequestIDMiddleware
 
-# --- CONFIGURATION ---
 configure_logging(level="INFO", service_name="user-server")
 logger = get_logger("user_server")
 
 DEFAULT_COMPANY_ID = os.getenv("DEFAULT_COMPANY_ID", "1893ab51e6284c1b8ed64c88238b116b")
 
-# --- 1. MODELS (Clean Input/Output) ---
 class ChatRequest(BaseModel):
     userId: str
     productId: str 
+    sessionId: str | None = None # NEW
     message: str
 
 class ChatResponse(BaseModel):
-    role: str       # "assistant"
-    content: str    # The answer
+    role: str
+    content: str
+    sessionId: str # NEW
 
-# --- 2. SESSION MANAGEMENT ---
 class UserSession:
     def __init__(self):
         self.product_based_bm25_dict = {}
         self.company_id = DEFAULT_COMPANY_ID
         self.context = "" 
 
-# Global session store (Note: In Phase 2, move this to Redis)
 sessions = {}
 
 def get_user_session(user_id: str) -> UserSession:
@@ -269,81 +270,49 @@ def get_user_session(user_id: str) -> UserSession:
         sessions[user_id] = UserSession()
     return sessions[user_id]
 
-# --- 3. LIFESPAN (Startup Logic) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global embedding_model, Pinecone_index, stats
-    start_time = time.time()
     logger.info("Starting up server...")
+    embedding_model = LocalEmbeddings("./models/multilingual-e5-large-instruct")
+    embedding_model._load_model()
     
-    # A. Load Embedding Model
     try:
-        embedding_model = LocalEmbeddings("./models/multilingual-e5-large-instruct")
-        embedding_model._load_model()
-        logger.info(f"Embeddings loaded in {time.time() - start_time:.2f}s")
-    except Exception as e:
-        logger.error(f"Failed to load embedding model: {e}")
-        raise e
-
-    # B. Connect to Pinecone
-    try:
-        # NOTE: Use env variables for API keys in production!
         pc = Pinecone(api_key="pcsk_2ht9Mg_9VwrnZM7wQrAiCkEfUTQFLDsPui6p9VxkcKbCPvKsVSUaR9jZwmeQwwuUpbpGJv")
         Pinecone_index = pc.Index(host="https://test-11ejuti.svc.aped-4627-b74a.pinecone.io")
         stats = Pinecone_index.describe_index_stats()
-        logger.info(f"Pinecone connected. Stats: {stats}")
     except Exception as e:
         logger.error(f"Pinecone connection failed: {str(e)}")
-        # We allow startup even if Pinecone fails (so Login/Signup still work)
-
+        
     yield
     logger.info("Shutting down...")
 
-# --- 4. APP DEFINITION ---
 app = FastAPI(lifespan=lifespan)
 
-# CORS (Allow Frontend Connection)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow all for development
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 app.add_middleware(RequestIDMiddleware)
 
-# --- 5. REGISTER ROUTES ---
-app.include_router(user_router)    # Login/Signup logic
-app.include_router(product_routes) # Context/Dropdown logic
+# REGISTER ROUTES
+app.include_router(user_router)
+app.include_router(product_router)
+app.include_router(history_router) # NEW
 
-# --- 6. HELPER FUNCTIONS ---
 async def load_company_data_into_session(session: UserSession):
-    """
-    Fetches BM25 indexes from MongoDB and loads them into RAM.
-    This is the 'Heavy Lifting' function.
-    """
-    # Guard Clause: If already loaded, skip (Instant response)
-    if session.product_based_bm25_dict:
-        return 
-
-    logger.info(f"Loading Knowledge Base for company: {session.company_id}")
+    if session.product_based_bm25_dict: return 
     retrieved_data = retrieve_bm25_index_and_chunks_using_company(session.company_id)
-    
-    if not retrieved_data:
-        # Don't crash, just log warning. Maybe company has no docs yet.
-        logger.warning("No knowledge base found in MongoDB.")
-        return
+    if not retrieved_data: return
 
     for data in retrieved_data:
         p_id = data.get('product_id', 'default')
-        
-        # recreate BM25 object
         bm25 = create_bm25_index_v2(data['bm25_index_variables'])
-        
-        # Flatten chunks list
         chunk_tuples = []
         for item in data['chunks']:
-            # Handle nested structure from DB
             sub_chunks = item.get('chunks', [])
             chunk_tuples.extend(sub_chunks)
 
@@ -352,59 +321,47 @@ async def load_company_data_into_session(session: UserSession):
             "chunk_length": data["chunk_length"],
             "chunks": chunk_tuples
         }
-    logger.info("Knowledge Base loaded into Session Memory.")
-
-# --- 7. ENDPOINTS ---
 
 @app.post("/warmup")
 async def warmup_endpoint(request: ChatRequest):
-    """
-    Called by Frontend immediately after Login.
-    Pre-loads data so the first chat message is fast.
-    """
     try:
         session = get_user_session(request.userId)
         await load_company_data_into_session(session)
-        return {"status": "ready", "message": "Session warmed up"}
+        return {"status": "ready"}
     except Exception as e:
-        logger.error(f"Warmup failed: {e}")
-        # Don't fail the request, just log it. Chat will retry anyway.
         return {"status": "partial", "message": str(e)}
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
-    """
-    The One-Stop-Shop: Handles Retrieval + Generation
-    """
+async def chat_endpoint(request: ChatRequest, db: DBSession):
     try:
-        # A. Get Session
         session = get_user_session(request.userId)
-        
-        # B. Auto-Load (Self-Healing)
-        # If Warmup failed or was skipped, this line saves the day.
         await load_company_data_into_session(session)
 
-        # C. Select Product Context
+        # 1. Handle Session Creation
+        session_uuid = None
+        if request.sessionId:
+            session_uuid = encode_uuid(request.sessionId)
+        else:
+            new_session = ChatSession(
+                user_id=encode_uuid(request.userId),
+                product_id=encode_uuid(request.productId),
+                title=request.message[:50]
+            )
+            db.add(new_session)
+            await db.commit()
+            session_uuid = new_session.id
+
+        # 2. RAG Logic
         target_product_id = request.productId
-        
-        # Fallback: If requested product not found in loaded data, use first available
         if target_product_id not in session.product_based_bm25_dict:
-            if session.product_based_bm25_dict:
-                target_product_id = next(iter(session.product_based_bm25_dict))
-                logger.warning(f"Product {request.productId} not found. Switched to {target_product_id}")
-            else:
-                # If NO data exists at all, we can't do RAG.
-                return {
-                    "role": "assistant",
-                    "content": "I don't have any documents loaded for this company yet."
-                }
+             if session.product_based_bm25_dict:
+                 target_product_id = next(iter(session.product_based_bm25_dict))
+             else:
+                 return {"role": "assistant", "content": "No documents loaded.", "sessionId": str(decode_uuid(session_uuid))}
 
         product_data = session.product_based_bm25_dict[target_product_id]
-
-        # D. Fusion Retrieval
         namespace = f"{session.company_id}_{target_product_id}"
         
-        # Run the search
         result_indexes = await fusion_retrieval(
             stats=stats,
             Pinecone_index=Pinecone_index,
@@ -415,29 +372,28 @@ async def chat_endpoint(request: ChatRequest):
             namespace=namespace
         )
 
-        # E. Map Indexes to Text
-        # Adjusting 0-based vs 1-based index mismatch
         result_indexes = [int(i) + 1 for i in result_indexes]
-        
-        # Create a lookup map for speed O(1)
         chunk_map = {c[0]: c[1] for c in product_data["chunks"]}
-        
-        sorted_chunks = []
-        for idx in result_indexes:
-            if idx in chunk_map:
-                sorted_chunks.append(chunk_map[idx])
-
-        # Select Top 3 Chunks
+        sorted_chunks = [chunk_map[idx] for idx in result_indexes if idx in chunk_map]
         context_text = " ".join(sorted_chunks[:3])
-        session.context = context_text # Save context for debugging/logging
-
-        # F. Generate Response (LLM)
+        
         generator = ResponseGenerator(request.message, context_text)
         final_answer = generator.generation()
 
+        # 3. Save to DB
+        user_msg = ChatMessage(session_id=session_uuid, role="user", content=request.message)
+        ai_msg = ChatMessage(session_id=session_uuid, role="assistant", content=final_answer)
+        db.add_all([user_msg, ai_msg])
+        
+        session_obj = await db.get(ChatSession, session_uuid)
+        if session_obj: session_obj.updated_at = datetime.now(timezone.utc)
+        
+        await db.commit()
+
         return {
             "role": "assistant",
-            "content": final_answer
+            "content": final_answer,
+            "sessionId": str(decode_uuid(session_uuid))
         }
 
     except Exception as e:

@@ -1,10 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
 from .db_connection_new import DBSession
-from .entities import ChatSession, ChatMessage, encode_uuid, decode_uuid
+from .entities import ChatSession, ChatMessage, Product, encode_uuid, decode_uuid
 from datetime import datetime
 
 router = APIRouter(prefix="/history", tags=["history"])
@@ -14,6 +13,7 @@ class SessionResponse(BaseModel):
     id: str
     title: str
     product_name: str
+    product_id: str
     updated_at: datetime
 
 class MessageResponse(BaseModel):
@@ -30,7 +30,6 @@ class CreateSessionRequest(BaseModel):
 
 @router.post("/session/create")
 async def create_session(db: DBSession, req: CreateSessionRequest):
-    """Creates a new empty chat thread"""
     try:
         new_session = ChatSession(
             user_id=encode_uuid(req.user_id),
@@ -45,37 +44,32 @@ async def create_session(db: DBSession, req: CreateSessionRequest):
 
 @router.get("/sessions/{user_id}", response_model=List[SessionResponse])
 async def get_user_sessions(db: DBSession, user_id: str):
-    """Fetches all chat threads for the sidebar (Recent first)"""
+    """Fetches chat threads for sidebar (Joined with Product Name)"""
     try:
-        # We join with Product table to get the Product Name for the UI
-        # Note: You need to import Product entity at top if you want to join. 
-        # For simplicity, we assume product_id lookup or basic fetch here.
-        stmt = select(ChatSession).where(
+        stmt = select(ChatSession, Product.name).join(
+            Product, ChatSession.product_id == Product.id
+        ).where(
             ChatSession.user_id == encode_uuid(user_id)
         ).order_by(desc(ChatSession.updated_at))
         
         result = await db.execute(stmt)
-        sessions = result.scalars().all()
+        rows = result.all()
         
         return [
             SessionResponse(
-                id=str(decode_uuid(s.id)),
-                title=s.title or "New Chat",
-                product_name="Assistant", # You can enhance this with a JOIN later
-                updated_at=s.updated_at
-            ) for s in sessions
+                id=str(decode_uuid(row[0].id)),
+                title=row[0].title or "New Chat",
+                product_id=str(decode_uuid(row[0].product_id)),
+                product_name=row[1], 
+                updated_at=row[0].updated_at
+            ) for row in rows
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/messages/{session_id}", response_model=List[MessageResponse])
-async def get_messages(
-    db: DBSession, 
-    session_id: str, 
-    limit: int = 20, 
-    skip: int = 0
-):
-    """Lazy Loads messages. Default: Last 20 messages."""
+async def get_messages(db: DBSession, session_id: str, limit: int = 20, skip: int = 0):
+    """Lazy Loads messages (Infinite Scroll)"""
     try:
         stmt = select(ChatMessage).where(
             ChatMessage.session_id == encode_uuid(session_id)
@@ -84,7 +78,7 @@ async def get_messages(
         result = await db.execute(stmt)
         messages = result.scalars().all()
         
-        # Reverse them because UI expects oldest-to-newest, but we fetched newest-first
+        # Reverse to show oldest first in UI
         messages.reverse() 
         
         return [
