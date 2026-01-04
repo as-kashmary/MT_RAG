@@ -1,9 +1,8 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.mysql import LONGBLOB, BINARY
 from .db_connection_new import Base
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
-
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text # <--- ADD 'Text' HERE
 from src.logging.logging import get_logger
 logger= get_logger("entities")
 
@@ -97,16 +96,30 @@ class File(Base):
         )
 
 
-class QueryAndAnswer(Base):
-    __tablename__ = 'query_and_answer'
+# --- These tables are created for store chat sessions and messages ---
+
+class ChatSession(Base):
+    __tablename__ = 'chat_session'
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
-    query = Column(String(255), nullable=False)
-    response = Column(String(255), nullable=False)
-    user_id = Column(BINARY(16), ForeignKey('user.id', ondelete="CASCADE"), nullable=False )
+    # Note: 'User' table uses 'id', so we link to 'user.id'
+    user_id = Column(BINARY(16), ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
+    product_id = Column(BINARY(16), ForeignKey('product.id', ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=True) # First message snippet (for sidebar)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
-        return (
-            f"<QueryAndAnswer(id='{decode_uuid(self.id)}', query='{self.query}', "
-            f"response='{self.response}', user_id='{decode_uuid(self.user_id)}')>"
-        )
+        return f"<ChatSession(id='{decode_uuid(self.id)}', title='{self.title}')>"
+
+class ChatMessage(Base):
+    __tablename__ = 'chat_message'
+
+    id = Column(BINARY(16), primary_key=True, default=generate_uuid)
+    session_id = Column(BINARY(16), ForeignKey('chat_session.id', ondelete="CASCADE"), nullable=False)
+    role = Column(String(50), nullable=False) # 'user' or 'assistant'
+    content = Column(Text, nullable=False)    # 'Text' type is crucial for long RAG responses
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f"<ChatMessage(id='{decode_uuid(self.id)}', role='{self.role}')>"
