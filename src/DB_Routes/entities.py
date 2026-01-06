@@ -55,6 +55,22 @@ class Company(Base):
 
     def __repr__(self):
         return f"<Company(id='{decode_uuid(self.id)}', name='{self.name}', login_id='{self.login_id}')>"
+
+
+class Product(Base):
+    """
+    Product entity - represents a product/service within a company.
+    Documents are associated with specific products for multi-product support.
+    """
+    __tablename__ = 'product'
+
+    id = Column(BINARY(16), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)
+    description = Column(String(500), nullable=True)
+    company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE"), nullable=False)
+
+    def __repr__(self):
+        return f"<Product(id='{decode_uuid(self.id)}', name='{self.name}', company_id='{decode_uuid(self.company_id)}')>"
     
 
 class Admin(Base):
@@ -74,9 +90,10 @@ class File(Base):
 
     id = Column(BINARY(16), primary_key=True, default=generate_uuid)
     file_name = Column(String(255), nullable=False)
-    company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE" ), nullable=False)
+    company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE"), nullable=False)
+    product_id = Column(BINARY(16), ForeignKey('product.id', ondelete="CASCADE"), nullable=True)
     file_data = Column(LONGBLOB, nullable=False)
-    file_hash= Column(String(255), nullable=False, unique=True)
+    file_hash = Column(String(255), nullable=False, unique=True)
     file_format = Column(String(255), nullable=False)
     status = Column(String(255), nullable=False, default="pending")
     uploaded_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -84,8 +101,9 @@ class File(Base):
     def __repr__(self):
         return (
             f"<File(id='{decode_uuid(self.id)}', name='{self.file_name}', "
-            f"company_id='{decode_uuid(self.company_id)}', format='{self.file_format}', "
-            f"status='{self.status}')>"
+            f"company_id='{decode_uuid(self.company_id)}', "
+            f"product_id='{decode_uuid(self.product_id) if self.product_id else None}', "
+            f"format='{self.file_format}', status='{self.status}')>"
         )
 
 

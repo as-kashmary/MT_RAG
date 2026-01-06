@@ -30,9 +30,19 @@ from src.DB_Routes.mongodb_implementation import (
 from src.logging.logging import configure_logging, get_logger
 from src.logging.request_id import RequestIDMiddleware
 
-# Import Executive Portal routes
-from src.DB_Routes.Executive_routes import router as executive_router
-from src.DB_Routes.Analytics_routes import router as analytics_router
+# Import Executive Portal routes from Executive_routes package
+from src.DB_Routes.Executive_routes import (
+    executive_router,
+    analytics_router
+)
+
+# Import Admin Portal routes from Admin_routes package
+from src.DB_Routes.Admin_routes import (
+    auth_router as admin_auth_router,
+    document_router as admin_doc_router,
+    analytics_router as admin_analytics_router,
+    product_router as admin_product_router
+)
 
 configure_logging(level="INFO", service_name="admin-server")
 
@@ -90,10 +100,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-# CORS middleware for Executive Portal frontend
+# CORS middleware for Executive Portal and Admin Portal frontends
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",  # Executive Portal
+        "http://localhost:5174",  # Admin Portal
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -111,6 +127,12 @@ logger = get_logger("admin_server")
 # Include Executive Portal routers
 app.include_router(executive_router)
 app.include_router(analytics_router)
+
+# Include Admin Portal routers
+app.include_router(admin_auth_router)
+app.include_router(admin_doc_router)
+app.include_router(admin_analytics_router)
+app.include_router(admin_product_router)
 
 
 @app.post("/parser")
