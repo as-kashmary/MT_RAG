@@ -145,6 +145,12 @@ class UserCreate(BaseModel):
     name: str
     email: str
     password: str
+    
+    """
+    In future Company_id can also be added here for multi-company support 
+    so that while creating user we can assign specific company_id.
+    
+    """
 
 class UserLogin(BaseModel):
     email: str
