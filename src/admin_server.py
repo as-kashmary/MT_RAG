@@ -211,15 +211,9 @@ async def parser(admin_id: str,
         })
     
         parsing_time = time.time() - start_time
-        logger.info(f"Parsing completed in {parsing_time:.2f} seconds.")
         logger.info(f"Parsed {filename} document from {document_path} in {parsing_time:.2f} seconds for product {product_id} and company {company_id}.")
         
-        return {
-            "file_name": filename,
-            "product_id": product_id,
-            "company_id": company_id,
-            "time": parsing_time
-        }
+        return admin_session.parsed_contents_list
 
     except Exception as e:
         logger.error(f"Parsing failed: {str(e)}")
@@ -327,6 +321,29 @@ async def chunk(admin_id: str,
         Now we will sort the chunks based on product_id and company_id for further processing in product_based_chunks.
         """
         unique_product_ids.add("X")  # Adding company-wide product_id
+        #   # For testing purpose
+        """
+        unique_product_ids=["acme", "globex", "X"]
+
+        admin_session.chunks_list structure:
+        [
+            {
+                "file_name": "file1.pdf",
+                "product_id": "product1",
+                "company_id": "company",
+                "chunks": [
+                    {
+                        "file_name": "file1.pdf",
+                        "chunks": [ 
+                            (1, "chunk text 1"), 
+                            (2, "chunk text 2"), ... ]
+                    }
+                ],
+                "chunk_length": 10
+            },
+            ....
+        ]
+        """
         for product_id in unique_product_ids:
             chunks_for_product = []
             chunk_length_for_product = 0
@@ -413,6 +430,7 @@ async def chunk(admin_id: str,
         So we are stil figuring out ways to avoid storing and passsing them in memory.
         If it required mongodb implementation then it can be done later.
         """
+        admin_session.parsed_contents_list= []  # Freeing up memory
 
         return {
             "company_id": admin_session.company_id,
@@ -459,12 +477,12 @@ async def vectorizing(admin_id: str,
                     "metadata": [
                        { "filename": filename,
                         "product_id": product_id,
-                        "chunk": chunk_text},
+                        "chunk": chunk_text
+                        },
                         ...
                     ]
-
-
-                }
+                },
+                ...
             }
 
             """
@@ -548,6 +566,14 @@ async def store(admin_id: str,
                 admin_session.product_based_vector_info[product_id]["metadata"],
                 admin_session.product_based_vector_info[product_id]["namespace"]
             )
+            
+        # Nulling the admin_session 
+        admin_session.chunks_list = []
+        admin_session.parsed_contents_list = []       
+        admin_session.chunk_length={}
+        admin_session.product_based_chunk_info={}
+        admin_session.product_based_vector_info={}
+        admin_session.retrieved_product_data={}
         logger.info(f"Storing completed for company {admin_session.company_id} in {time.time() - start_time:.2f} seconds.")
         return {
             "company_id": admin_session.company_id,
@@ -559,11 +585,6 @@ async def store(admin_id: str,
         logger.error(f"Storing failed: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storing failed:{str(e)}")
         
-    
-    vector_storing_time = time.time() - start_time
-    logger.info(f"Vector Storing Time: {vector_storing_time:.2f} seconds")
-
-    
 
 
 #hosting on localhost

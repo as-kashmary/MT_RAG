@@ -174,6 +174,7 @@ async def response_generation(user_id: str,
         generator = ResponseGenerator(user_session.query, context)
         response = generator.generation()
         logger.info(f"Response generated successfully for query: {user_session.query}")
+        user_session.context= None  # Freeing up memory
         return JSONResponse(content=response)
     except Exception as e:
         logger.error(f"Response generation failed: {str(e)}")
