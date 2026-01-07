@@ -84,16 +84,7 @@ class Admin(Base):
     def __repr__(self):
         return f"<Admin(id='{decode_uuid(self.id)}', username='{self.username}')>"
 
-class Product(Base):
-    __tablename__ = 'product'
 
-    id = Column(BINARY(16), primary_key=True, default=generate_uuid)
-    name = Column(String(255), nullable=False)
-    description = Column(String(255), nullable=True)
-    company_id = Column(BINARY(16), ForeignKey('company.id', ondelete="CASCADE" ), nullable=False)
-
-    def __repr__(self):
-        return f"<Product(id='{decode_uuid(self.id)}', name='{self.name}', company_id='{decode_uuid(self.company_id)}')>"
 
 class File(Base):
     __tablename__ = 'file'
