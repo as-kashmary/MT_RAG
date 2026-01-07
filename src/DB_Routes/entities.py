@@ -94,7 +94,19 @@ class File(Base):
             f"company_id='{decode_uuid(self.company_id)}', format='{self.file_format}', "
             f"status='{self.status}')>"
         )
+class QueryAndAnswer(Base):
+    __tablename__ = 'query_and_answer'
 
+    id = Column(BINARY(16), primary_key=True, default=generate_uuid)
+    query = Column(String(255), nullable=False)
+    response = Column(String(255), nullable=False)
+    user_id = Column(BINARY(16), ForeignKey('user.id', ondelete="CASCADE"), nullable=False )
+
+    def __repr__(self):
+        return (
+            f"<QueryAndAnswer(id='{decode_uuid(self.id)}', query='{self.query}', "
+            f"response='{self.response}', user_id='{decode_uuid(self.user_id)}')>"
+        )
 
 # --- These tables are created for store chat sessions and messages ---
 
