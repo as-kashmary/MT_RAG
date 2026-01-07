@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>my-rag-chat</title>
+    <script>
+      // Apply dark mode immediately to prevent flash
+      (function() {
+        try {
+          const stored = localStorage.getItem('rag_dark_mode');
+          let isDarkMode = false;
+          if (stored) {
+            isDarkMode = JSON.parse(stored);
+          }
+          
+          const html = document.documentElement;
+          if (isDarkMode) {
+            html.classList.add('dark');
+          } else {
+            html.classList.remove('dark');
+          }
+        } catch (e) {
+          console.error('Error applying dark mode:', e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
