@@ -5,6 +5,7 @@ __pycache__/
 *$py.class
 models/
 
+src/static/**/node_modules/
 
 download_dir/
 
@@ -154,7 +155,6 @@ venv/
 # env.bak/
 # venv.bak/
 
-static/
 # Spyder project settings
 .spyderproject
 .spyproject
